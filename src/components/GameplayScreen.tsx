@@ -1,18 +1,24 @@
+import { Canvas } from '@react-three/fiber'
 import { useGameStore } from '../store/gameStore'
 import { Activity, Shield, Zap } from 'lucide-react'
+import { useHandTracking } from '../hooks/useHandTracking'
+import { GameScene } from '../game/GameScene'
 
 export function GameplayScreen() {
   const { score, combo, health } = useGameStore()
+  const { landmarks, gestureResult } = useHandTracking()
 
   return (
     <div className="relative w-full h-full bg-bg-dark overflow-hidden">
-      {/* 3D Canvas will go here */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <span className="text-gray-700 font-mono text-2xl opacity-50">3D ARENA (Canvas)</span>
+      {/* 3D Canvas */}
+      <div className="absolute inset-0">
+        <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
+          <GameScene landmarks={landmarks} gestureResult={gestureResult} />
+        </Canvas>
       </div>
 
       {/* HUD Layer */}
-      <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between">
+      <div className="absolute inset-0 pointer-events-none p-8 flex flex-col justify-between z-10">
         {/* Top Bar */}
         <div className="flex justify-between items-start">
           {/* Score & Combo */}
@@ -45,10 +51,25 @@ export function GameplayScreen() {
         </div>
 
         {/* Bottom Bar: Action Indicators */}
-        <div className="flex justify-center gap-8">
-          <ActionIndicator icon={<Zap className="w-6 h-6" />} label="SWIPE" active={false} color="primary" />
-          <ActionIndicator icon={<Shield className="w-6 h-6" />} label="SHIELD" active={false} color="secondary" />
-          <ActionIndicator icon={<Activity className="w-6 h-6" />} label="SMASH" active={false} color="danger" />
+        <div className="flex justify-center gap-8 mb-4">
+          <ActionIndicator 
+            icon={<Zap className="w-6 h-6" />} 
+            label="SWIPE" 
+            active={gestureResult.gesture.startsWith('swipe')} 
+            color="primary" 
+          />
+          <ActionIndicator 
+            icon={<Shield className="w-6 h-6" />} 
+            label="SHIELD" 
+            active={gestureResult.gesture === 'shield'} 
+            color="secondary" 
+          />
+          <ActionIndicator 
+            icon={<Activity className="w-6 h-6" />} 
+            label="SMASH" 
+            active={gestureResult.gesture === 'smash'} 
+            color="danger" 
+          />
         </div>
       </div>
     </div>
@@ -63,11 +84,11 @@ function ActionIndicator({ icon, label, active, color }: { icon: React.ReactNode
   }
   
   return (
-    <div className={`flex flex-col items-center gap-2 transition-all ${active ? 'scale-110' : 'opacity-50'}`}>
-      <div className={`w-14 h-14 rounded-full border-2 ${colorMap[color]} flex items-center justify-center glass ${active ? 'bg-white/20' : ''}`}>
+    <div className={`flex flex-col items-center gap-2 transition-all duration-150 ${active ? 'scale-125' : 'opacity-60 scale-100'}`}>
+      <div className={`w-16 h-16 rounded-full border-2 ${colorMap[color]} flex items-center justify-center glass transition-all ${active ? 'bg-white/20 shadow-[0_0_20px_rgba(255,255,255,0.5)]' : ''}`}>
         {icon}
       </div>
-      <span className="text-xs font-bold tracking-widest text-gray-400">{label}</span>
+      <span className={`text-xs font-bold tracking-widest ${active ? 'text-white drop-shadow-md' : 'text-gray-400'}`}>{label}</span>
     </div>
   )
 }
