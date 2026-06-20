@@ -1,6 +1,5 @@
 import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
-import { Landmark } from '../gestures/GestureTypes'
+import type { Landmark } from '../gestures/GestureTypes'
 import * as THREE from 'three'
 
 interface PlayerHandProps {
@@ -50,14 +49,16 @@ export function PlayerHand({ landmarks }: PlayerHandProps) {
               <bufferAttribute
                 attach="attributes-position"
                 count={HAND_CONNECTIONS.length * 2}
-                array={new Float32Array(
-                  HAND_CONNECTIONS.flatMap(([start, end]) => {
-                    const p1 = mapLandmark(landmarks[start])
-                    const p2 = mapLandmark(landmarks[end])
-                    return [p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]
-                  })
-                )}
-                itemSize={3}
+                args={[
+                  new Float32Array(
+                    HAND_CONNECTIONS.flatMap(([start, end]) => {
+                      const p1 = mapLandmark(landmarks[start])
+                      const p2 = mapLandmark(landmarks[end])
+                      return [p1.x, p1.y, p1.z, p2.x, p2.y, p2.z]
+                    })
+                  ),
+                  3
+                ]}
               />
             </bufferGeometry>
             <lineBasicMaterial attach="material" color="#00e5ff" linewidth={2} />

@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Landmark, GestureResult } from '../gestures/GestureTypes'
+import type { Landmark, GestureResult } from '../gestures/GestureTypes'
 import { PlayerHand } from './PlayerHand'
 import { useGameStore } from '../store/gameStore'
 import * as THREE from 'three'

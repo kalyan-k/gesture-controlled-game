@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { handTracker } from '../gestures/HandTracker'
 import { GestureRecognizer } from '../gestures/GestureRecognizer'
-import { Landmark, GestureResult } from '../gestures/GestureTypes'
+import type { Landmark, GestureResult } from '../gestures/GestureTypes'
 import { useGameStore } from '../store/gameStore'
 
 export function useHandTracking() {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const requestRef = useRef<number>()
+  const requestRef = useRef<number>(0)
   const recognizer = useRef(new GestureRecognizer())
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [gestureResult, setGestureResult] = useState<GestureResult>({ gesture: 'none', confidence: 0, landmarks: [] })

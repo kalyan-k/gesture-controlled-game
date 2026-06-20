@@ -1,4 +1,4 @@
-import { Landmark, GestureType } from './GestureTypes'
+import type { Landmark, GestureType } from './GestureTypes'
 
 export class GestureRecognizer {
   private history: { center: { x: number; y: number }; time: number }[] = []

@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { useGameStore } from '../store/gameStore'
 import { Camera, CheckCircle2 } from 'lucide-react'
 import { useHandTracking } from '../hooks/useHandTracking'
-import { Landmark } from '../gestures/GestureTypes'
 import { audio } from '../hooks/useAudio'
 
 const HAND_CONNECTIONS = [
