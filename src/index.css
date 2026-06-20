@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #00e5ff;
+  --color-secondary: #7c4dff;
+  --color-accent: #00ffb3;
+  --color-danger: #ff4d6d;
+  --color-bg-dark: #050816;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-dark text-white overflow-hidden select-none;
+    margin: 0;
+    padding: 0;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+}
