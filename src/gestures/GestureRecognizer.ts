@@ -13,7 +13,6 @@ export class GestureRecognizer {
   // Stability tracking
   private currentStableGesture: GestureType = 'none'
   private gestureStartTime = 0
-  private lastReportedGesture: GestureType = 'none'
 
   analyze(landmarks: Landmark[], timestamp: number): { gesture: GestureType; pinchPower?: number } {
     const center = this.getHandCenter(landmarks)
@@ -29,7 +28,6 @@ export class GestureRecognizer {
     if (swipe !== 'none') {
       this.pinchStartTime = 0
       this.currentStableGesture = 'none'
-      this.lastReportedGesture = swipe
       return { gesture: swipe }
     }
 
@@ -65,13 +63,11 @@ export class GestureRecognizer {
     if (this.currentStableGesture === 'pinch') {
       if (this.pinchStartTime === 0) this.pinchStartTime = timestamp
       const power = Math.min(1, (timestamp - this.pinchStartTime) / 1000) // Max power after 1 sec
-      this.lastReportedGesture = 'pinch'
       return { gesture: 'pinch', pinchPower: power }
     } else {
       this.pinchStartTime = 0
     }
 
-    this.lastReportedGesture = this.currentStableGesture
     return { gesture: this.currentStableGesture }
   }
 

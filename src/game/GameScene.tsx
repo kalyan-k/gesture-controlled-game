@@ -22,7 +22,7 @@ interface Target {
 
 export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
   const targetsRef = useRef<Target[]>([])
-  const { addScore, takeDamage, level, energy, useEnergy, chargeEnergy, recordSwipe } = useGameStore()
+  const { addScore, takeDamage, level, chargeEnergy, recordSwipe } = useGameStore()
   const lastSpawnTime = useRef(0)
 
   // Ref to target meshes for updating transforms
@@ -80,6 +80,9 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
             audio.playHit()
           }
         }
+        // Assuming we only record the swipe once per target loop is wrong,
+        // so we'll just record it if hit is true. Proper swipe recording needs debouncing.
+        if (hit) recordSwipe(true)
       } else if (gestureResult.gesture === 'smash') {
         // Screen clear or radius damage
         if (target.position.z > -10 && target.position.z < 5) {
