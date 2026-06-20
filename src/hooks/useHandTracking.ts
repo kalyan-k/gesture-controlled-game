@@ -10,7 +10,14 @@ export function useHandTracking() {
   const recognizer = useRef(new GestureRecognizer())
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [gestureResult, setGestureResult] = useState<GestureResult>({ gesture: 'none', confidence: 0, landmarks: [] })
+  
   const setCameraReady = useGameStore((state) => state.setCameraReady)
+  const setFps = useGameStore((state) => state.setFps)
+  const setCurrentGesture = useGameStore((state) => state.setCurrentGesture)
+  
+  // FPS tracking
+  const frameCountRef = useRef(0)
+  const lastFpsTimeRef = useRef(performance.now())
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -51,23 +58,46 @@ export function useHandTracking() {
 
   const startDetection = () => {
     const detect = () => {
+      const now = performance.now()
+
+      // FPS calculation
+      frameCountRef.current++
+      if (now - lastFpsTimeRef.current >= 1000) {
+        setFps(Math.round((frameCountRef.current * 1000) / (now - lastFpsTimeRef.current)))
+        frameCountRef.current = 0
+        lastFpsTimeRef.current = now
+      }
+
       if (videoRef.current && videoRef.current.readyState >= 2) {
-        const results = handTracker.detect(videoRef.current, performance.now())
+        const results = handTracker.detect(videoRef.current, now)
         
-        if (results && results.landmarks.length > 0) {
+        let confidence = 0
+        if (results && results.handednesses && results.handednesses.length > 0) {
+          confidence = results.handednesses[0][0].score
+        }
+
+        if (results && results.landmarks.length > 0 && confidence > 0.85) {
           const lms = results.landmarks[0] as Landmark[]
           setLandmarks(lms)
           
-          const gResult = recognizer.current.analyze(lms, performance.now())
+          const gResult = recognizer.current.analyze(lms, now)
           setGestureResult({
             gesture: gResult.gesture,
-            confidence: 1, // MediaPipe handles confidence internally via minDetectionConfidence
+            confidence: confidence,
             landmarks: lms,
             pinchPower: gResult.pinchPower
           })
+          
+          if (gResult.gesture !== 'none') {
+            setCurrentGesture(gResult.gesture)
+          } else {
+            setCurrentGesture(null)
+          }
+
         } else {
           setLandmarks([])
           setGestureResult({ gesture: 'none', confidence: 0, landmarks: [] })
+          setCurrentGesture(null)
         }
       }
       requestRef.current = requestAnimationFrame(detect)
@@ -75,5 +105,5 @@ export function useHandTracking() {
     detect()
   }
 
-  return { videoRef, landmarks, gestureResult }
+  return { videoRef, landmarks, gestureResult, confidence: gestureResult.confidence }
 }

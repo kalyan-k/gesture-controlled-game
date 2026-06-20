@@ -32,7 +32,7 @@ export function LandingScreen() {
         <motion.button
           whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(0,229,255,0.4)' }}
           whileTap={{ scale: 0.95 }}
-          onClick={() => setGameState('calibration')}
+          onClick={() => setGameState('dashboard')}
           className="px-10 py-4 bg-white/5 border border-primary/30 rounded-2xl text-primary font-bold text-xl tracking-widest uppercase transition-colors hover:bg-primary/10 glass"
         >
           Initialize System

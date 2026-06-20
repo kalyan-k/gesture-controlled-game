@@ -22,7 +22,7 @@ interface Target {
 
 export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
   const targetsRef = useRef<Target[]>([])
-  const { addScore, takeDamage, level } = useGameStore()
+  const { addScore, takeDamage, level, energy, useEnergy, chargeEnergy, recordSwipe } = useGameStore()
   const lastSpawnTime = useRef(0)
 
   // Ref to target meshes for updating transforms
@@ -67,11 +67,14 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
       // Collision with hand/gestures
       let hit = false
 
+      // Handle global gesture effects (outside loop)
+      // Done in the frame loop below to avoid multiple triggers per frame
+
       if (gestureResult.gesture.startsWith('swipe')) {
         // Broad phase collision for swipe (very simplified)
         if (target.position.z > -5 && target.position.z < 5) {
           const dist = target.position.distanceTo(handCenter)
-          if (dist < 3) {
+          if (dist < 4) {
             hit = true
             addScore(10)
             audio.playHit()
@@ -88,12 +91,14 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
         // Block
         if (target.position.z > -2 && target.position.z < 2) {
           const dist = target.position.distanceTo(handCenter)
-          if (dist < 4) {
+          if (dist < 5) {
             hit = true // Deflected
             addScore(5)
             audio.playShield()
           }
         }
+      } else if (gestureResult.gesture === 'pinch') {
+        // Charging handled below, releasing blast could be implemented
       }
 
       if (hit) {
@@ -108,6 +113,11 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
         useGameStore.getState().resetCombo()
         audio.playMiss()
       }
+    }
+    
+    // Process continuous energy charge
+    if (gestureResult.gesture === 'pinch') {
+      chargeEnergy(delta * 20) // Charge 20% per second
     }
 
     // Clean up inactive targets
