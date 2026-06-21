@@ -22,6 +22,8 @@ export function EnergyOrb({ landmarks, pinchPower = 0 }: EnergyOrbProps) {
   const trailRef = useRef<THREE.Points>(null)
   const posRef = useRef(new THREE.Vector3(0, 0, 0))
   const trailIndex = useRef(0)
+  const { settings } = useGameStore()
+  const isLight = settings.theme === 'light'
   const trailGeom = useMemo(() => {
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(60 * 3), 3))
