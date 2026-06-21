@@ -67,31 +67,73 @@ export function LandingScreen() {
           HAND STRIKE
         </h1>
 
-        <p className="text-xl mb-3 font-light" style={{ color: 'var(--color-text-muted)' }}>
+        <p className="text-xl mb-6 font-light" style={{ color: 'var(--color-text-muted)' }}>
           Your hand is the weapon. Destroy targets. Survive.
         </p>
-        <p className="text-sm mb-12" style={{ color: 'var(--color-text-muted)', opacity: 0.6 }}>
-          Requires webcam • Hand tracking powered by MediaPipe
-        </p>
+
+        {/* ── Beautiful Gameplay Instructions Card ── */}
+        <div className="glass rounded-3xl p-6 w-full max-w-xl text-left border-themed mb-8 flex flex-col gap-4">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-center mb-1" style={{ color: 'var(--color-primary)' }}>
+            HOW TO PLAY & CONTROLS
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+            <div className="flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                🖐️ 1. Setup & Calibration
+              </span>
+              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
+                Allow camera access, then follow the 5-step wizard to calibrate the gestures to your hand's unique sizing.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                ⚔ 2. Attack & Defense
+              </span>
+              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
+                Use <b>Swipe</b> to slash incoming red target spheres. Hold an <b>Open Palm</b> to raise your defense shield.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                💥 3. Special Powers
+              </span>
+              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
+                Make a tight <b>Fist</b> to release a screen-clearing shockwave. Hold <b>Pinch</b> to charge up your energy meter.
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
+                ⚙ 4. System Shortcuts
+              </span>
+              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
+                Form a <b>Peace Sign (✌️)</b> anytime to toggle settings. Flash a <b>Thumbs Up (👍)</b> to quickly resume or start gameplay.
+              </span>
+            </div>
+          </div>
+        </div>
 
         <motion.button
-          whileHover={{ scale: 1.06, boxShadow: '0 0 40px rgba(0,229,255,0.4)' }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(0,229,255,0.4)' }}
+          whileTap={{ scale: 0.96 }}
           onClick={() => setGameState('permissions')}
-          className="flex items-center gap-3 px-12 py-5 rounded-2xl font-black text-xl tracking-widest uppercase"
+          className="flex items-center gap-3 px-12 py-4 rounded-2xl font-black text-xl tracking-widest uppercase cursor-pointer"
           style={{
             background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
             color: 'white',
             boxShadow: '0 0 20px rgba(0,229,255,0.25)',
           }}
         >
-          <Hand className="w-6 h-6" />
+          <Hand className="w-5 h-5" />
           Enter the Arena
-          <ChevronRight className="w-6 h-6" />
+          <ChevronRight className="w-5 h-5" />
         </motion.button>
 
-        <p className="mt-6 text-xs" style={{ color: 'var(--color-text-muted)', opacity: 0.5 }}>
-          ✌️ Peace sign to open settings • 👍 Thumbs up to resume
+        <p className="mt-4 text-[11px]" style={{ color: 'var(--color-text-muted)', opacity: 0.6 }}>
+          Requires webcam for hand tracking • Processed 100% locally in your browser
         </p>
       </motion.div>
     </div>

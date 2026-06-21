@@ -29,7 +29,8 @@ function mapLandmark(lm: Landmark) {
 
 export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
   const targetsRef = useRef<Target[]>([])
-  const { addScore, takeDamage, level, chargeEnergy, recordSwipe } = useGameStore()
+  const { addScore, takeDamage, level, chargeEnergy, recordSwipe, settings } = useGameStore()
+  const isLight = settings.theme === 'light'
   const lastSpawnTime = useRef(0)
   const targetMeshesRef = useRef<THREE.InstancedMesh>(null)
   const dummy = useRef(new THREE.Object3D())
@@ -132,15 +133,18 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
 
   return (
     <>
-      <ambientLight intensity={0.3} />
-      <pointLight position={[10, 10, 10]} intensity={0.8} color="#00e5ff" />
-      <pointLight position={[-10, -10, -10]} intensity={0.4} color="#7c4dff" />
+      {/* Background clearing color matching the active theme */}
+      <color attach="background" args={[isLight ? '#f0f4ff' : '#050816']} />
+
+      <ambientLight intensity={isLight ? 0.8 : 0.3} />
+      <pointLight position={[10, 10, 10]} intensity={isLight ? 1.5 : 0.8} color={isLight ? '#0077ff' : '#00e5ff'} />
+      <pointLight position={[-10, -10, -10]} intensity={0.4} color={isLight ? '#5b21b6' : '#7c4dff'} />
 
       {/* Grid floor */}
       <gridHelper
-        args={[100, 20, '#ffffff', '#ffffff']}
+        args={[100, 20, isLight ? '#000000' : '#ffffff', isLight ? '#000000' : '#ffffff']}
         position={[0, -5, 0]}
-        material-opacity={0.05}
+        material-opacity={isLight ? 0.08 : 0.05}
         material-transparent
       />
 
@@ -148,9 +152,9 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
       <instancedMesh ref={targetMeshesRef} args={[undefined, undefined, 100]}>
         <octahedronGeometry args={[0.5, 0]} />
         <meshStandardMaterial
-          color="#ff4d6d"
-          emissive="#ff4d6d"
-          emissiveIntensity={1.5}
+          color={isLight ? '#e11d48' : '#ff4d6d'}
+          emissive={isLight ? '#e11d48' : '#ff4d6d'}
+          emissiveIntensity={isLight ? 0.5 : 1.5}
           wireframe
         />
       </instancedMesh>
@@ -158,9 +162,12 @@ export function GameScene({ landmarks, gestureResult }: GameSceneProps) {
       {/* Energy Orb – replaces PlayerHand in gameplay */}
       <EnergyOrb landmarks={landmarks} pinchPower={gestureResult.pinchPower ?? 0} />
 
-      <EffectComposer>
-        <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.9} height={300} intensity={1.8} />
-      </EffectComposer>
+      {/* Avoid blinding/over-saturating light background by disabling bloom in Light mode */}
+      {!isLight && (
+        <EffectComposer>
+          <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.9} height={300} intensity={1.8} />
+        </EffectComposer>
+      )}
     </>
   )
 }

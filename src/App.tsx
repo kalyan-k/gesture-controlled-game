@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Sun, Moon } from 'lucide-react'
 import { useGameStore } from './store/gameStore'
 import { LandingScreen } from './components/LandingScreen'
 import { PermissionsScreen } from './components/PermissionsScreen'
@@ -10,7 +11,7 @@ import { DashboardScreen } from './components/DashboardScreen'
 const PLAYING_STATES = ['dashboard', 'playing', 'paused', 'settings']
 
 function App() {
-  const { gameState, score, maxCombo, targetsDestroyed, sessionDuration, resetGame, settings } = useGameStore()
+  const { gameState, score, maxCombo, targetsDestroyed, sessionDuration, resetGame, settings, updateSettings } = useGameStore()
 
   // Apply persisted theme on first load
   useEffect(() => {
@@ -19,6 +20,20 @@ function App() {
     else document.documentElement.classList.remove('light')
   }, [])
 
+  const isDark = settings.theme === 'dark'
+
+  const toggleTheme = () => {
+    const nextTheme = isDark ? 'light' : 'dark'
+    updateSettings({ theme: nextTheme })
+    if (nextTheme === 'light') {
+      document.documentElement.classList.add('light')
+      localStorage.setItem('hand-strike-theme', 'light')
+    } else {
+      document.documentElement.classList.remove('light')
+      localStorage.setItem('hand-strike-theme', 'dark')
+    }
+  }
+
   const showDashboard = PLAYING_STATES.includes(gameState)
 
   return (
@@ -26,6 +41,20 @@ function App() {
       className="w-screen h-screen overflow-hidden font-sans relative"
       style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
     >
+      {/* Floating Global Theme Switcher */}
+      <div className="absolute top-6 right-6 z-50">
+        <motion.button
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.94 }}
+          onClick={toggleTheme}
+          className="p-3 rounded-full glass border border-themed flex items-center justify-center shadow-lg transition-colors cursor-pointer"
+          style={{ background: 'var(--color-bg-panel)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+          title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
+        >
+          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </motion.button>
+      </div>
+
       <AnimatePresence mode="wait">
 
         {/* ── Landing ─────────────────────────────── */}

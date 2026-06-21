@@ -4,13 +4,13 @@ import { Activity, Target } from 'lucide-react'
 import { GameScene } from '../game/GameScene'
 
 export function GameplayScreen({ landmarks, gestureResult }: any) {
-  const { score, level, health, energy, gameState } = useGameStore()
+  const { score, level, health, energy, gameState, settings } = useGameStore()
 
   return (
     <div className="relative w-full h-full overflow-hidden rounded-l-3xl">
       {/* 3D Canvas */}
       <div className="absolute inset-0">
-        <Canvas camera={{ position: [0, 0, 10], fov: 60 }}>
+        <Canvas key={settings.theme} camera={{ position: [0, 0, 10], fov: 60 }}>
           <GameScene landmarks={landmarks} gestureResult={gestureResult} />
         </Canvas>
       </div>

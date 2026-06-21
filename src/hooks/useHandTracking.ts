@@ -87,12 +87,10 @@ export function useHandTracking() {
             }
           }
 
-          // Non-system gesture → pass to game
-          if (!gResult.isSystemGesture) {
-            useGameStore.getState().setCurrentGesture(
-              gResult.gesture !== 'none' ? gResult.gesture : null
-            )
-          }
+          // Always set the current gesture in store for the control panel list highlight
+          useGameStore.getState().setCurrentGesture(
+            gResult.gesture !== 'none' ? gResult.gesture : null
+          )
         } else {
           // No hand detected
           setLandmarks([])

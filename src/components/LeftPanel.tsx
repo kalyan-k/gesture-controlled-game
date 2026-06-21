@@ -110,15 +110,53 @@ export function LeftPanel({ videoRef, canvasRef, confidence, isReady }: any) {
       </div>
 
       {/* ── Controls Card ────────────────────────────── */}
-      <div className="glass rounded-3xl p-3 flex flex-col gap-2" style={{ border: '1px solid var(--color-border)' }}>
-        <h2 className="text-xs font-bold tracking-wider px-1" style={{ color: 'var(--color-text-muted)' }}>CONTROLS</h2>
-        <div className="grid grid-cols-2 gap-1.5">
-          <ControlItem icon={<Zap className="w-3.5 h-3.5" />} color="var(--color-primary)" name="Swipe" desc="Slice Targets" />
-          <ControlItem icon={<Shield className="w-3.5 h-3.5" />} color="var(--color-secondary)" name="Open Palm" desc="Activate Shield" />
-          <ControlItem icon={<Activity className="w-3.5 h-3.5" />} color="var(--color-danger)" name="Fist" desc="Shockwave" />
-          <ControlItem icon={<Target className="w-3.5 h-3.5" />} color="#f97316" name="Pinch" desc="Charge Blast" />
-          <ControlItem icon={<span className="text-xs">✌️</span>} color="var(--color-accent)" name="Peace Sign" desc="Settings" />
-          <ControlItem icon={<span className="text-xs">👍</span>} color="var(--color-accent)" name="Thumbs Up" desc="Resume Game" />
+      <div className="glass rounded-3xl p-3 flex flex-col gap-2 border-themed">
+        <h2 className="text-xs font-bold tracking-wider px-1" style={{ color: 'var(--color-text-muted)' }}>
+          GAMEPLAY CONTROLS
+        </h2>
+        <div className="flex flex-col gap-2">
+          <ControlItemRow
+            icon={<Zap className="w-4 h-4" />}
+            color="var(--color-primary)"
+            name="Swipe (Left/Right)"
+            desc="Slices oncoming target spheres"
+            isActive={useGameStore().currentGesture?.startsWith('swipe')}
+          />
+          <ControlItemRow
+            icon={<Shield className="w-4 h-4" />}
+            color="var(--color-secondary)"
+            name="Open Palm (Shield)"
+            desc="Blocks spheres near your hand"
+            isActive={useGameStore().currentGesture === 'shield'}
+          />
+          <ControlItemRow
+            icon={<Activity className="w-4 h-4" />}
+            color="var(--color-danger)"
+            name="Fist (Smash)"
+            desc="Shatters all spheres on screen"
+            isActive={useGameStore().currentGesture === 'smash'}
+          />
+          <ControlItemRow
+            icon={<Target className="w-4 h-4" />}
+            color="#f97316"
+            name="Pinch (Charge)"
+            desc="Charges your special energy bar"
+            isActive={useGameStore().currentGesture === 'pinch'}
+          />
+          <ControlItemRow
+            icon={<span className="text-xs">✌️</span>}
+            color="var(--color-accent)"
+            name="Peace Sign"
+            desc="Toggles Settings modal"
+            isActive={useGameStore().currentGesture === 'peace_sign'}
+          />
+          <ControlItemRow
+            icon={<span className="text-xs">👍</span>}
+            color="var(--color-accent)"
+            name="Thumbs Up"
+            desc="Starts / Resumes gameplay"
+            isActive={useGameStore().currentGesture === 'thumbs_up'}
+          />
         </div>
       </div>
 
@@ -160,16 +198,49 @@ export function LeftPanel({ videoRef, canvasRef, confidence, isReady }: any) {
   )
 }
 
-function ControlItem({ icon, name, desc, color }: any) {
+function ControlItemRow({ icon, name, desc, color, isActive }: any) {
   return (
-    <div className="flex items-center gap-2 p-2 rounded-xl transition-colors"
-      style={{ background: 'var(--color-glass-bg)', border: '1px solid var(--color-border)' }}>
-      <div className="p-1.5 rounded-lg flex-shrink-0"
-        style={{ background: 'var(--color-glass-bg)', color }}>{icon}</div>
-      <div className="flex flex-col min-w-0">
-        <span className="text-xs font-bold truncate" style={{ color: 'var(--color-text)' }}>{name}</span>
-        <span className="text-[10px] truncate" style={{ color: 'var(--color-text-muted)' }}>{desc}</span>
+    <div
+      className={`flex items-center justify-between p-2.5 rounded-2xl border transition-all duration-300 ${
+        isActive
+          ? 'scale-[1.02] shadow-md'
+          : 'opacity-75 hover:opacity-100'
+      }`}
+      style={{
+        background: isActive ? `linear-gradient(90deg, var(--color-glass-bg), ${color}1a)` : 'var(--color-glass-bg)',
+        borderColor: isActive ? color : 'var(--color-border)',
+      }}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`p-2 rounded-xl flex items-center justify-center transition-all ${
+            isActive ? 'scale-110 shadow-lg' : ''
+          }`}
+          style={{
+            background: isActive ? color : 'var(--color-glass-bg)',
+            color: isActive ? 'var(--color-bg)' : color,
+            boxShadow: isActive ? `0 0 10px ${color}` : 'none',
+          }}
+        >
+          {icon}
+        </div>
+        <div className="flex flex-col min-w-0">
+          <span className="text-xs font-bold" style={{ color: 'var(--color-text)' }}>{name}</span>
+          <span className="text-[10px]" style={{ color: 'var(--color-text-muted)' }}>{desc}</span>
+        </div>
       </div>
+
+      {/* Active Indicator Badge */}
+      {isActive && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md tracking-wider animate-pulse whitespace-nowrap ml-2"
+          style={{ background: color, color: 'var(--color-bg)' }}
+        >
+          Active
+        </motion.div>
+      )}
     </div>
   )
 }
