@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { GestureResult } from '../gestures/GestureTypes'
 import { SpellcasterEngine } from '../game/SpellcasterEngine'
-import { SPELL_LABELS } from '../gestures/GestureTypes'
+import { SPELL_LABELS, TRAINING_GESTURES } from '../gestures/GestureTypes'
 import {
   ELEMENT_DISPLAY,
   type Enemy,
@@ -179,6 +179,8 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
       ctx.lineTo(w, barrierY)
       ctx.stroke()
       ctx.shadowBlur = 0
+
+      drawSpellbookBar(ctx, w, barrierY, isLight, useGameStore.getState().currentGesture)
 
       const healthColor = health > 50 ? '#00ffb3' : health > 25 ? '#fbbf24' : '#ff4d6d'
       ctx.fillStyle = healthColor + '25'
@@ -436,6 +438,50 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
         const s = SPELL_LABELS[engine.lastCastSpell]
         ctx.fillStyle = '#00ffb3'
         ctx.fillText(`Last cast: ${s.emoji} ${s.name}`, 14, 84)
+      }
+    }
+
+    const drawSpellbookBar = (
+      ctx: CanvasRenderingContext2D,
+      w: number,
+      barrierY: number,
+      isLight: boolean,
+      currentGesture: string | null
+    ) => {
+      const spells = TRAINING_GESTURES
+      const slotW = Math.min(118, (w - 32) / spells.length)
+      const totalW = slotW * spells.length
+      const startX = (w - totalW) / 2
+      const barTop = barrierY + 10
+
+      ctx.textAlign = 'center'
+      ctx.fillStyle = isLight ? '#475569' : '#94a3b8'
+      ctx.font = 'bold 9px Inter, system-ui, sans-serif'
+      ctx.fillText('SPELLBOOK', w / 2, barTop + 10)
+
+      for (let i = 0; i < spells.length; i++) {
+        const gesture = spells[i]
+        const info = SPELL_LABELS[gesture]
+        const isActive = currentGesture === gesture
+        const x = startX + i * slotW
+        const badgeW = slotW - 6
+        const badgeH = 24
+        const badgeY = barTop + 16
+
+        ctx.fillStyle = isActive
+          ? (isLight ? 'rgba(0,119,255,0.18)' : 'rgba(0,229,255,0.18)')
+          : (isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.07)')
+        roundRect(ctx, x + 3, badgeY, badgeW, badgeH, 6)
+        ctx.fill()
+        ctx.strokeStyle = isActive
+          ? (isLight ? '#0077ff' : '#00e5ff')
+          : (isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.18)')
+        ctx.lineWidth = isActive ? 2 : 1
+        ctx.stroke()
+
+        ctx.fillStyle = isLight ? '#0d1117' : '#f0f4ff'
+        ctx.font = isActive ? 'bold 10px Inter, system-ui, sans-serif' : '10px Inter, system-ui, sans-serif'
+        ctx.fillText(`${info.emoji} ${info.name}`, x + slotW / 2, badgeY + 16)
       }
     }
 

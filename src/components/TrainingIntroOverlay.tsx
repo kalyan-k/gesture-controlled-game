@@ -42,7 +42,7 @@ export function TrainingIntroOverlay() {
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-5 h-5" style={{ color: 'var(--color-primary)' }} />
           <h2 className="text-lg font-black" style={{ color: 'var(--color-text)' }}>
-            Welcome to the Spellcaster&apos;s Academy
+            Welcome to Spellcaster&apos;s to attack Enemies
           </h2>
         </div>
 
@@ -119,9 +119,9 @@ export function TrainingIntroOverlay() {
               }}
               className="w-full py-3.5 rounded-2xl font-black text-sm tracking-widest uppercase cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, #f97316, #ef4444)',
-                color: 'white',
-                boxShadow: '0 0 30px rgba(249,115,22,0.5)',
+                background: '#ea580c',
+                color: '#ffffff',
+                border: '2px solid rgba(0,0,0,0.15)',
               }}
             >
               Begin Assault

@@ -47,7 +47,7 @@ function App() {
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
           onClick={toggleTheme}
-          className="p-2.5 rounded-full glass border border-themed flex items-center justify-center shadow-lg cursor-pointer"
+          className="p-2.5 rounded-full border border-themed flex items-center justify-center cursor-pointer"
           style={{ background: 'var(--color-bg-panel)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
         >

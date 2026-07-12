@@ -136,7 +136,7 @@ export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       gameState: 'landing',
-      selectedGame: 'spellcaster',
+      selectedGame: 'block_breaker',
       stage: 'TRAINING_INTRO',
       trainingComplete: false,
       trainingGestures: emptyTrainingChecklist(),

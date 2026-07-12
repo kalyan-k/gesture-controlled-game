@@ -51,9 +51,9 @@ export function GameOverOverlay() {
         }}
         className="px-12 py-4 rounded-2xl font-black text-lg tracking-widest uppercase cursor-pointer"
         style={{
-          background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-          color: 'white',
-          boxShadow: '0 0 30px rgba(0,229,255,0.4)',
+          background: 'var(--color-primary)',
+          color: '#ffffff',
+          border: '2px solid rgba(0,0,0,0.15)',
         }}
       >
         Retry Assault

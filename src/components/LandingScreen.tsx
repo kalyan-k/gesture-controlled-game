@@ -47,30 +47,8 @@ export function LandingScreen() {
           Choose a game — both use your webcam. Processed locally in your browser.
         </p>
 
-        {/* Game selector */}
+        {/* Game selector — landing page only */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mb-6">
-          <motion.button
-            type="button"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => pickGame('spellcaster')}
-            className="glass rounded-2xl p-5 text-left border-2 cursor-pointer transition-colors"
-            style={{
-              borderColor: selectedGame === 'spellcaster' ? 'var(--color-primary)' : 'var(--color-border)',
-              boxShadow: selectedGame === 'spellcaster' ? '0 0 20px rgba(0,229,255,0.15)' : 'none',
-            }}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <Wand2 className="w-6 h-6" style={{ color: 'var(--color-secondary)' }} />
-              <h2 className="text-lg font-black" style={{ color: 'var(--color-text)' }}>
-                Spellcaster&apos;s Academy
-              </h2>
-            </div>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
-              Cast elemental spells with hand gestures. Defend the barrier from falling enemies.
-            </p>
-          </motion.button>
-
           <motion.button
             type="button"
             whileHover={{ scale: 1.02 }}
@@ -79,7 +57,6 @@ export function LandingScreen() {
             className="glass rounded-2xl p-5 text-left border-2 cursor-pointer transition-colors"
             style={{
               borderColor: selectedGame === 'block_breaker' ? 'var(--color-primary)' : 'var(--color-border)',
-              boxShadow: selectedGame === 'block_breaker' ? '0 0 20px rgba(0,229,255,0.15)' : 'none',
             }}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -92,7 +69,44 @@ export function LandingScreen() {
               Classic brick breaker. Move your hand left ↔ right to control the paddle. Catch power-ups!
             </p>
           </motion.button>
+
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => pickGame('spellcaster')}
+            className="glass rounded-2xl p-5 text-left border-2 cursor-pointer transition-colors"
+            style={{
+              borderColor: selectedGame === 'spellcaster' ? 'var(--color-primary)' : 'var(--color-border)',
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Wand2 className="w-6 h-6" style={{ color: 'var(--color-secondary)' }} />
+              <h2 className="text-lg font-black" style={{ color: 'var(--color-text)' }}>
+                Spellcaster&apos;s attack Enemies
+              </h2>
+            </div>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-muted)' }}>
+              Cast elemental spells with hand gestures. Defend the barrier from falling enemies.
+            </p>
+          </motion.button>
         </div>
+
+        {selectedGame === 'block_breaker' && (
+          <div className="glass rounded-3xl p-5 w-full max-w-lg text-left border-themed mb-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            <h2 className="text-xs font-bold tracking-widest uppercase text-center mb-3" style={{ color: 'var(--color-primary)' }}>
+              Block Breaker Controls
+            </h2>
+            <ul className="space-y-2 text-xs">
+              <li>🖐️ Move hand <b>horizontally</b> — paddle follows instantly</li>
+              <li>🖐️ <b>Open Palm</b> — launch ball (after countdown &amp; each life lost)</li>
+              <li>❤️ <b>3 lives per level</b> — cleared level resets lives to 3</li>
+              <li>🔴 Red = 50 &nbsp; 🟡 Yellow = 30 &nbsp; 🟢 Green = 10</li>
+              <li>💊 Drops: extra life, +1 ball, 30s full-width safety bar</li>
+              <li>⏸️ Hand out of frame for 8 frames — game auto-pauses</li>
+            </ul>
+          </div>
+        )}
 
         {selectedGame === 'spellcaster' && (
           <div className="glass rounded-3xl p-5 w-full max-w-lg text-left border-themed mb-6">
@@ -112,39 +126,23 @@ export function LandingScreen() {
           </div>
         )}
 
-        {selectedGame === 'block_breaker' && (
-          <div className="glass rounded-3xl p-5 w-full max-w-lg text-left border-themed mb-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            <h2 className="text-xs font-bold tracking-widest uppercase text-center mb-3" style={{ color: 'var(--color-primary)' }}>
-              Block Breaker Controls
-            </h2>
-            <ul className="space-y-2 text-xs">
-              <li>🖐️ Move hand <b>horizontally</b> — paddle follows instantly</li>
-              <li>🖐️ <b>Open Palm</b> — launch ball (after countdown &amp; each life lost)</li>
-              <li>❤️ <b>3 lives per level</b> — cleared level resets lives to 3</li>
-              <li>🔴 Red = 50 &nbsp; 🟡 Yellow = 30 &nbsp; 🟢 Green = 10</li>
-              <li>💊 Drops: extra life, +1 ball, 30s full-width safety bar</li>
-              <li>⏸️ Hand out of frame for 8 frames — game auto-pauses</li>
-            </ul>
-          </div>
-        )}
-
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.96 }}
           onClick={enter}
           className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-lg tracking-widest uppercase cursor-pointer"
           style={{
-            background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-            color: 'white',
-            boxShadow: '0 0 20px rgba(0,229,255,0.25)',
+            background: 'var(--color-primary)',
+            color: '#ffffff',
+            border: '2px solid rgba(0,0,0,0.15)',
           }}
         >
-          {selectedGame === 'block_breaker' ? 'Play Block Breaker' : 'Enter the Academy'}
+          {selectedGame === 'block_breaker' ? 'Play Block Breaker' : 'Play Spellcaster\'s attack Enemies'}
           <ChevronRight className="w-5 h-5" />
         </motion.button>
 
         <p className="mt-3 text-[11px]" style={{ color: 'var(--color-text-muted)', opacity: 0.6 }}>
-          Webcam required • Switch games anytime from the dashboard
+          Webcam required • All processing stays on your device
         </p>
       </motion.div>
     </div>

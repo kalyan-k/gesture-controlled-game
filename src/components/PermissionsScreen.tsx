@@ -98,7 +98,7 @@ export function PermissionsScreen() {
               style={{
                 background: 'var(--color-primary)',
                 color: 'var(--color-bg)',
-                boxShadow: '0 0 30px rgba(0,229,255,0.4)',
+                border: '2px solid rgba(0,0,0,0.15)',
               }}
             >
               Initialize System
@@ -116,7 +116,7 @@ export function PermissionsScreen() {
               ⚠ Camera Access Required
             </h2>
             <p style={{ color: 'var(--color-text-muted)' }} className="text-lg">
-              The Spellcaster&apos;s Academy uses your webcam for real-time hand tracking. No footage is stored or transmitted.
+              Hand Gesture Arcade uses your webcam for real-time hand tracking. No footage is stored or transmitted.
             </p>
             <motion.button
               whileHover={{ scale: 1.06 }}
@@ -126,7 +126,7 @@ export function PermissionsScreen() {
               style={{
                 background: 'var(--color-primary)',
                 color: 'var(--color-bg)',
-                boxShadow: '0 0 30px rgba(0,229,255,0.3)',
+                border: '2px solid rgba(0,0,0,0.15)',
               }}
             >
               Enable Camera

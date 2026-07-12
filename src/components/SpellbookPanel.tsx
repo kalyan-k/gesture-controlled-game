@@ -31,11 +31,8 @@ export function SpellbookPanel() {
               transition={{ duration: 0.3 }}
               className="flex items-start gap-2 p-2 rounded-xl border transition-all duration-200"
               style={{
-                background: isActive
-                  ? 'linear-gradient(90deg, var(--color-glass-bg), rgba(0,229,255,0.12))'
-                  : 'var(--color-glass-bg)',
+                background: isActive ? 'var(--color-glass-bg)' : 'var(--color-glass-bg)',
                 borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-                boxShadow: isActive ? '0 0 12px rgba(0,229,255,0.25)' : 'none',
               }}
             >
               <span className="text-base w-6 text-center shrink-0">{info.emoji}</span>
