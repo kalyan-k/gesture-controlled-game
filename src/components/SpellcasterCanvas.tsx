@@ -2,8 +2,59 @@ import { useEffect, useRef } from 'react'
 import type { GestureResult } from '../gestures/GestureTypes'
 import { SpellcasterEngine } from '../game/SpellcasterEngine'
 import { SPELL_LABELS } from '../gestures/GestureTypes'
+import {
+  ELEMENT_DISPLAY,
+  type Enemy,
+} from '../game/spellcasterTypes'
 import { useGameStore } from '../store/gameStore'
 import { audio } from '../hooks/useAudio'
+
+const SPAWN_ANIM_S = 0.55
+const TARGET_HINT_RADIUS = 150
+
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+function findNearestTargetedEnemy(
+  enemies: Enemy[],
+  cx: number,
+  cy: number
+): Enemy | null {
+  let nearest: Enemy | null = null
+  let minDist = Infinity
+  for (const enemy of enemies) {
+    const reach = enemy.config.size * 0.5 + TARGET_HINT_RADIUS
+    const d = Math.hypot(enemy.x - cx, enemy.y - cy)
+    if (d <= reach && d < minDist) {
+      minDist = d
+      nearest = enemy
+    }
+  }
+  return nearest
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const radius = Math.min(r, w / 2, h / 2)
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.lineTo(x + w - radius, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius)
+  ctx.lineTo(x + w, y + h - radius)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h)
+  ctx.lineTo(x + radius, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius)
+  ctx.lineTo(x, y + radius)
+  ctx.quadraticCurveTo(x, y, x + radius, y)
+  ctx.closePath()
+}
 
 interface SpellcasterCanvasProps {
   gestureResult: GestureResult
@@ -25,7 +76,7 @@ function createEngine(): SpellcasterEngine {
       audio.playCast(spell)
       useGameStore.getState().recordSpellCast(spell)
     },
-    onKill: () => audio.playExplosion(),
+    onKill: (element, elite) => audio.playKnockout(element, elite),
     onMiss: () => audio.playMiss(),
   })
 }
@@ -144,17 +195,63 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
         ctx.shadowBlur = 0
       }
 
-      // Enemies
+      // Barrier core — player spells launch from here
+      const coreX = w / 2
+      const coreY = barrierY - 10
+      ctx.fillStyle = isLight ? 'rgba(0,119,255,0.2)' : 'rgba(0,229,255,0.25)'
+      ctx.beginPath()
+      ctx.arc(coreX, coreY, 14, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = isLight ? '#0077ff' : '#00e5ff'
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // Enemies — spawn animation + element badges
+      const cx = engine.crosshair.x * w
+      const cy = engine.crosshair.y * h
+      const targeted = findNearestTargetedEnemy(engine.enemies, cx, cy)
+
       for (const enemy of engine.enemies) {
         const cfg = enemy.config
         const r = cfg.size * 0.5
+        const spawnT = Math.min(1, enemy.spawnAge / SPAWN_ANIM_S)
+        const enter = easeOutCubic(spawnT)
+        const isTargeted = targeted?.id === enemy.id
+
         ctx.save()
         ctx.translate(enemy.x, enemy.y)
-        if (enemy.slowed) ctx.globalAlpha = 0.65
+        ctx.globalAlpha = (enemy.slowed ? 0.75 : 1) * (0.25 + 0.75 * enter)
+        ctx.scale(0.45 + 0.55 * enter, 0.45 + 0.55 * enter)
 
+        // Spawn portal ring
+        if (spawnT < 1) {
+          ctx.strokeStyle = cfg.color + 'aa'
+          ctx.lineWidth = 3
+          ctx.shadowColor = cfg.color
+          ctx.shadowBlur = 18
+          ctx.beginPath()
+          ctx.arc(0, 0, r + 18 * (1 - spawnT), 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.shadowBlur = 0
+        }
+
+        // Target highlight ring (nearest enemy only)
+        if (isTargeted) {
+          const pulse = 0.5 + 0.5 * Math.sin(engine.elapsed * 6)
+          ctx.strokeStyle = `rgba(0, 255, 179, ${0.35 + pulse * 0.45})`
+          ctx.lineWidth = 3
+          ctx.shadowColor = '#00ffb3'
+          ctx.shadowBlur = 22
+          ctx.beginPath()
+          ctx.arc(0, 0, r + 10 + pulse * 4, 0, Math.PI * 2)
+          ctx.stroke()
+          ctx.shadowBlur = 0
+        }
+
+        // Body
         ctx.fillStyle = cfg.color
         ctx.shadowColor = cfg.color
-        ctx.shadowBlur = 14
+        ctx.shadowBlur = isTargeted ? 22 : 16
         ctx.beginPath()
         if (cfg.type === 'bat') {
           ctx.ellipse(0, 0, r * 1.4, r * 0.8, 0, 0, Math.PI * 2)
@@ -164,18 +261,81 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
         ctx.fill()
         ctx.shadowBlur = 0
 
-        ctx.fillStyle = isLight ? '#0d1117' : '#ffffff'
-        ctx.font = 'bold 11px Inter, system-ui, sans-serif'
+        // White rim for contrast
+        ctx.strokeStyle = isLight ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.55)'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        // Elite crown marker
+        if (cfg.elite) {
+          ctx.fillStyle = '#fbbf24'
+          ctx.font = 'bold 10px Inter, system-ui, sans-serif'
+          ctx.textAlign = 'center'
+          ctx.fillText('★', 0, -r - 6)
+        }
+
+        // Name plate
+        const elem = ELEMENT_DISPLAY[cfg.element]
+        const plateW = Math.max(72, cfg.label.length * 6.5 + 36)
+        const plateH = 34
+        const plateY = -r - (cfg.elite ? 24 : 16) - plateH
+        ctx.fillStyle = isLight ? 'rgba(255,255,255,0.92)' : 'rgba(8,12,32,0.88)'
+        roundRect(ctx, -plateW / 2, plateY, plateW, plateH, 8)
+        ctx.fill()
+        ctx.strokeStyle = cfg.color
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+
         ctx.textAlign = 'center'
-        ctx.fillText(cfg.label, 0, -r - 10)
-        ctx.font = '9px Inter, system-ui, sans-serif'
+        ctx.fillStyle = isLight ? '#0d1117' : '#f0f4ff'
+        ctx.font = 'bold 11px Inter, system-ui, sans-serif'
+        ctx.fillText(cfg.label, 0, plateY + 13)
+        ctx.font = '10px Inter, system-ui, sans-serif'
         ctx.fillStyle = cfg.color
-        ctx.fillText(`(${cfg.element})`, 0, -r + 2)
-        // Weakness hint — which gesture knocks this out
-        const weakSpell = SPELL_LABELS[cfg.weakTo]
+        ctx.fillText(`${elem.emoji} ${elem.label}`, 0, plateY + 27)
+
+        ctx.restore()
+      }
+
+      // Gesture hint — only on nearest targeted enemy
+      if (targeted) {
+        const cfg = targeted.config
+        const spell = SPELL_LABELS[cfg.weakTo]
+        const r = cfg.size * 0.5
+        const bx = targeted.x
+        const by = targeted.y + r + 28
+
+        const badgeW = 118
+        const badgeH = 44
+        ctx.save()
+        ctx.translate(bx, by)
+
+        // Connector line from crosshair
+        ctx.strokeStyle = 'rgba(0, 255, 179, 0.35)'
+        ctx.lineWidth = 2
+        ctx.setLineDash([4, 4])
+        ctx.beginPath()
+        ctx.moveTo(0, -18)
+        ctx.lineTo(cx - bx, cy - by)
+        ctx.stroke()
+        ctx.setLineDash([])
+
+        ctx.fillStyle = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(6,10,28,0.94)'
+        roundRect(ctx, -badgeW / 2, -badgeH / 2, badgeW, badgeH, 10)
+        ctx.fill()
+        ctx.strokeStyle = '#00ffb3'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        ctx.textAlign = 'center'
+        ctx.font = '22px Inter, system-ui, sans-serif'
+        ctx.fillText(spell.emoji, -28, 6)
+        ctx.fillStyle = isLight ? '#0d1117' : '#f0f4ff'
+        ctx.font = 'bold 11px Inter, system-ui, sans-serif'
+        ctx.fillText(spell.name, 12, -2)
+        ctx.font = '9px Inter, system-ui, sans-serif'
         ctx.fillStyle = '#00ffb3'
-        ctx.font = 'bold 8px Inter, system-ui, sans-serif'
-        ctx.fillText(`Beat: ${weakSpell.emoji} ${weakSpell.name}`, 0, r + 12)
+        ctx.fillText('CAST THIS', 12, 12)
         ctx.restore()
       }
 
@@ -194,7 +354,7 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
         ctx.restore()
       }
 
-      // Spell projectiles
+      // Spell projectiles — trail from barrier core toward target
       for (const proj of engine.projectiles) {
         const colors: Record<string, string> = {
           fist: '#f97316',
@@ -202,43 +362,67 @@ export function SpellcasterCanvas({ gestureResult }: SpellcasterCanvasProps) {
           l_shape: '#fbbf24',
           rock_on: '#a16207',
         }
-        ctx.fillStyle = colors[proj.spell] ?? '#f97316'
-        ctx.shadowColor = ctx.fillStyle as string
-        ctx.shadowBlur = 12
+        const color = colors[proj.spell] ?? '#f97316'
+
+        const grad = ctx.createLinearGradient(proj.prevX, proj.prevY, proj.x, proj.y)
+        grad.addColorStop(0, color + '22')
+        grad.addColorStop(1, color)
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 4
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(proj.prevX, proj.prevY)
+        ctx.lineTo(proj.x, proj.y)
+        ctx.stroke()
+
+        ctx.fillStyle = color
+        ctx.shadowColor = color
+        ctx.shadowBlur = 14
         ctx.beginPath()
         ctx.arc(proj.x, proj.y, 9, 0, Math.PI * 2)
         ctx.fill()
         ctx.shadowBlur = 0
       }
 
-      // Enemy projectiles
+      // Enemy projectiles — trail toward barrier core
       for (const ep of engine.enemyProjectiles) {
+        const grad = ctx.createLinearGradient(ep.prevX, ep.prevY, ep.x, ep.y)
+        grad.addColorStop(0, 'rgba(255,77,109,0.2)')
+        grad.addColorStop(1, '#ff4d6d')
+        ctx.strokeStyle = grad
+        ctx.lineWidth = 3
+        ctx.lineCap = 'round'
+        ctx.beginPath()
+        ctx.moveTo(ep.prevX, ep.prevY)
+        ctx.lineTo(ep.x, ep.y)
+        ctx.stroke()
+
         ctx.fillStyle = '#ff4d6d'
         ctx.shadowColor = '#ff4d6d'
-        ctx.shadowBlur = 8
+        ctx.shadowBlur = 10
         ctx.beginPath()
-        ctx.arc(ep.x, ep.y, 5, 0, Math.PI * 2)
+        ctx.arc(ep.x, ep.y, 6, 0, Math.PI * 2)
         ctx.fill()
         ctx.shadowBlur = 0
       }
 
       // Crosshair reticle
-      const cx = engine.crosshair.x * w
-      const cy = engine.crosshair.y * h
+      const reticleX = engine.crosshair.x * w
+      const reticleY = engine.crosshair.y * h
       ctx.strokeStyle = isLight ? '#0077ff' : '#00e5ff'
       ctx.lineWidth = 2
       ctx.beginPath()
-      ctx.arc(cx, cy, 22, 0, Math.PI * 2)
+      ctx.arc(reticleX, reticleY, 22, 0, Math.PI * 2)
       ctx.stroke()
       ctx.beginPath()
-      ctx.moveTo(cx - 30, cy); ctx.lineTo(cx - 12, cy)
-      ctx.moveTo(cx + 12, cy); ctx.lineTo(cx + 30, cy)
-      ctx.moveTo(cx, cy - 30); ctx.lineTo(cx, cy - 12)
-      ctx.moveTo(cx, cy + 12); ctx.lineTo(cx, cy + 30)
+      ctx.moveTo(reticleX - 30, reticleY); ctx.lineTo(reticleX - 12, reticleY)
+      ctx.moveTo(reticleX + 12, reticleY); ctx.lineTo(reticleX + 30, reticleY)
+      ctx.moveTo(reticleX, reticleY - 30); ctx.lineTo(reticleX, reticleY - 12)
+      ctx.moveTo(reticleX, reticleY + 12); ctx.lineTo(reticleX, reticleY + 30)
       ctx.stroke()
       ctx.fillStyle = isLight ? '#0077ff' : '#00e5ff'
       ctx.beginPath()
-      ctx.arc(cx, cy, 3, 0, Math.PI * 2)
+      ctx.arc(reticleX, reticleY, 3, 0, Math.PI * 2)
       ctx.fill()
 
       // HUD

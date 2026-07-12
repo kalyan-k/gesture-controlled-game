@@ -5,6 +5,7 @@ import {
   type EnemyProjectile,
   type HitEffect,
   type EnemyType,
+  type EnemyElement,
   ENEMY_CONFIGS,
   canKnockOut,
 } from './spellcasterTypes'
@@ -19,6 +20,7 @@ const SPAWN_MIN_S = 3
 const SPAWN_MAX_S = 5
 const SPAWN_CHANNELS = 5
 const CAST_STABILITY_MS = 120
+const ENEMY_PROJECTILE_SPEED = 260
 
 export interface GameEngineCallbacks {
   onHit: (basePoints: number, bullseye: boolean) => number
@@ -26,7 +28,7 @@ export interface GameEngineCallbacks {
   onBarrierDamage: (amount: number) => void
   onComboReset: () => void
   onCast: (spell: SpellGesture) => void
-  onKill: () => void
+  onKill: (element: EnemyElement, elite: boolean) => void
   onMiss: () => void
 }
 
@@ -139,6 +141,7 @@ export class SpellcasterEngine {
 
     for (const enemy of this.enemies) {
       if (enemy.hp <= 0) continue
+      enemy.spawnAge += dt
 
       const speedMult = enemy.slowed ? 0.4 : 1
       enemy.y += enemy.config.speed * speedMult * dt
@@ -155,12 +158,21 @@ export class SpellcasterEngine {
         enemy.y < barrierY - 40 &&
         Math.random() < 0.003
       ) {
+        const originX = enemy.x
+        const originY = enemy.y + enemy.config.size * 0.5
+        const targetX = width / 2
+        const targetY = barrierY
+        const dx = targetX - originX
+        const dy = targetY - originY
+        const dist = Math.hypot(dx, dy) || 1
         this.enemyProjectiles.push({
           id: crypto.randomUUID(),
-          x: enemy.x,
-          y: enemy.y + enemy.config.size * 0.5,
-          vx: 0,
-          vy: 200,
+          x: originX,
+          y: originY,
+          prevX: originX,
+          prevY: originY,
+          vx: (dx / dist) * ENEMY_PROJECTILE_SPEED,
+          vy: (dy / dist) * ENEMY_PROJECTILE_SPEED,
           active: true,
         })
       }
@@ -185,6 +197,18 @@ export class SpellcasterEngine {
 
     for (const proj of this.projectiles) {
       if (!proj.active || proj.missed) continue
+      if (proj.impact === 'point' && proj.targetX != null && proj.targetY != null) {
+        const remaining = Math.hypot(proj.targetX - proj.x, proj.targetY - proj.y)
+        const step = Math.hypot(proj.x - proj.prevX, proj.y - proj.prevY)
+        if (remaining < 24 || (remaining < step && step > 0)) {
+          this.detonateAt(proj.spell, proj.targetX, proj.targetY, proj.impactRadius ?? 120)
+          proj.active = false
+        }
+      }
+    }
+
+    for (const proj of this.projectiles) {
+      if (!proj.active || proj.missed) continue
       const oob =
         proj.y < -60 ||
         proj.y > height + 60 ||
@@ -200,6 +224,8 @@ export class SpellcasterEngine {
 
     for (const ep of this.enemyProjectiles) {
       if (!ep.active) continue
+      ep.prevX = ep.x
+      ep.prevY = ep.y
       ep.x += ep.vx * dt
       ep.y += ep.vy * dt
 
@@ -208,7 +234,8 @@ export class SpellcasterEngine {
         continue
       }
 
-      if (ep.y >= barrierY) {
+      const distToCore = Math.hypot(ep.x - width / 2, ep.y - barrierY)
+      if (distToCore < 36) {
         ep.active = false
         this.callbacks.onBarrierDamage(4)
         this.callbacks.onComboReset()
@@ -242,6 +269,7 @@ export class SpellcasterEngine {
 
     const cx = this.crosshair.x * width
     const cy = this.crosshair.y * height
+    const origin = this.getBarrierOrigin(width, barrierY)
 
     if (spell === 'open_palm') {
       this.shieldActive = true
@@ -250,39 +278,72 @@ export class SpellcasterEngine {
     }
 
     if (spell === 'l_shape') {
-      this.strikeAt(spell, cx, cy, 120)
-      this.addAoeRing(cx, cy, '#fbbf24')
+      this.fireFromBarrier(spell, origin.x, origin.y, cx, cy, 'point', 120)
       return
     }
 
     if (spell === 'rock_on') {
-      this.aoeAt(spell, cx, cy, 140)
-      this.addAoeRing(cx, cy, '#a16207')
+      this.fireFromBarrier(spell, origin.x, origin.y, cx, cy, 'point', 140)
       return
     }
 
     if (spell === 'ok_sign') {
-      this.aoeAt(spell, cx, cy, 120)
-      this.addAoeRing(cx, cy, '#38bdf8')
+      this.fireFromBarrier(spell, origin.x, origin.y, cx, cy, 'point', 120)
       return
     }
 
-    const spawnX = Math.max(30, Math.min(width - 30, cx))
-    const dx = cx - spawnX
-    const dy = cy - (barrierY - 8)
+    this.fireFromBarrier(spell, origin.x, origin.y, cx, cy, 'enemy')
+  }
+
+  private getBarrierOrigin(width: number, barrierY: number) {
+    return { x: width / 2, y: barrierY - 10 }
+  }
+
+  private fireFromBarrier(
+    spell: SpellGesture,
+    originX: number,
+    originY: number,
+    targetX: number,
+    targetY: number,
+    impact: Projectile['impact'],
+    impactRadius?: number
+  ) {
+    const dx = targetX - originX
+    const dy = targetY - originY
     const dist = Math.hypot(dx, dy) || 1
     this.projectiles.push({
       id: crypto.randomUUID(),
       spell,
-      x: spawnX,
-      y: barrierY - 8,
-      prevX: spawnX,
-      prevY: barrierY - 8,
+      x: originX,
+      y: originY,
+      prevX: originX,
+      prevY: originY,
       vx: (dx / dist) * PROJECTILE_SPEED,
       vy: (dy / dist) * PROJECTILE_SPEED,
       active: true,
       missed: false,
+      impact,
+      targetX,
+      targetY,
+      impactRadius,
     })
+  }
+
+  private detonateAt(spell: SpellGesture, x: number, y: number, radius: number) {
+    if (spell === 'l_shape') {
+      this.strikeAt(spell, x, y, radius)
+      this.addAoeRing(x, y, '#fbbf24')
+      return
+    }
+    if (spell === 'rock_on') {
+      this.aoeAt(spell, x, y, radius)
+      this.addAoeRing(x, y, '#a16207')
+      return
+    }
+    if (spell === 'ok_sign') {
+      this.aoeAt(spell, x, y, radius)
+      this.addAoeRing(x, y, '#38bdf8')
+    }
   }
 
   private addAoeRing(x: number, y: number, color: string) {
@@ -326,7 +387,7 @@ export class SpellcasterEngine {
 
   private resolveCollisions() {
     for (const proj of this.projectiles) {
-      if (!proj.active) continue
+      if (!proj.active || proj.impact !== 'enemy') continue
       for (const enemy of this.enemies) {
         if (enemy.hp <= 0) continue
 
@@ -370,7 +431,7 @@ export class SpellcasterEngine {
   private killEnemy(enemy: Enemy, hitX: number, hitY: number) {
     const bullseye = Math.hypot(hitX - enemy.x, hitY - enemy.y) < BULLSEYE_RADIUS
     this.callbacks.onHit(enemy.config.basePoints, bullseye)
-    this.callbacks.onKill()
+    this.callbacks.onKill(enemy.config.element, enemy.config.elite)
     enemy.hp = 0
     this.hitEffects.push({
       id: crypto.randomUUID(),
@@ -406,6 +467,7 @@ export class SpellcasterEngine {
       hp: 1,
       slowed: false,
       slowTimer: 0,
+      spawnAge: 0,
     })
   }
 

@@ -129,6 +129,40 @@ class AudioEngine {
     }, 150)
   }
 
+  /** Distinct knockout sting per element — richer for elite (500pt) foes */
+  playKnockout(element: string, elite: boolean) {
+    const vol = elite ? 0.32 : 0.24
+    const gap = elite ? 90 : 65
+
+    const arpeggio = (notes: number[], type: OscillatorType = 'sine') => {
+      notes.forEach((f, i) => {
+        setTimeout(() => this.tone(f, elite ? 0.2 : 0.14, type, vol), i * gap)
+      })
+    }
+
+    this.playOnce(`knockout_${element}`, () => {
+      switch (element) {
+        case 'wood':
+          arpeggio([392, 494, 587, elite ? 784 : 659])
+          break
+        case 'ice':
+          arpeggio([659, 784, 988, elite ? 1175 : 1047], 'triangle')
+          break
+        case 'air':
+          arpeggio([523, 659, 784, elite ? 988 : 880], 'sine')
+          break
+        case 'fire':
+          arpeggio([196, 262, 330, 392, elite ? 523 : 440], 'sawtooth')
+          break
+        case 'earth':
+          arpeggio([82, 110, 147, elite ? 196 : 165], 'square')
+          break
+        default:
+          this.playExplosion()
+      }
+    }, 80)
+  }
+
   playBarrierThud() {
     this.playOnce('barrier', () => this.tone(60, 0.35, 'square', 0.4, 30), 400)
   }

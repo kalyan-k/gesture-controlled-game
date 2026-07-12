@@ -41,6 +41,14 @@ export function getKnockoutLabel(gesture: SpellGesture): string {
   return `${info.emoji} ${info.name} → ${knock.targets}`
 }
 
+export const ELEMENT_DISPLAY: Record<EnemyElement, { emoji: string; label: string }> = {
+  wood:  { emoji: '🌿', label: 'Wood' },
+  ice:   { emoji: '❄️', label: 'Ice' },
+  fire:  { emoji: '🔥', label: 'Fire' },
+  earth: { emoji: '🪨', label: 'Earth' },
+  air:   { emoji: '💨', label: 'Air' },
+}
+
 export function getEnemyWeaknessLabel(type: EnemyType): string {
   const cfg = ENEMY_CONFIGS[type]
   const spell = SPELL_LABELS[cfg.weakTo]
@@ -57,6 +65,8 @@ export interface Enemy {
   hp: number
   slowed: boolean
   slowTimer: number
+  /** Seconds since spawn — drives entrance animation */
+  spawnAge: number
 }
 
 export interface Projectile {
@@ -70,12 +80,19 @@ export interface Projectile {
   vy: number
   active: boolean
   missed: boolean
+  /** 'enemy' = collide with foes; 'point' = detonate at target coords */
+  impact: 'enemy' | 'point'
+  targetX?: number
+  targetY?: number
+  impactRadius?: number
 }
 
 export interface EnemyProjectile {
   id: string
   x: number
   y: number
+  prevX: number
+  prevY: number
   vx: number
   vy: number
   active: boolean
