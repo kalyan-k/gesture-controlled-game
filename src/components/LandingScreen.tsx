@@ -1,6 +1,8 @@
 import { motion } from 'framer-motion'
 import { useGameStore } from '../store/gameStore'
-import { Hand, ChevronRight } from 'lucide-react'
+import { Wand2, ChevronRight } from 'lucide-react'
+import { audio } from '../hooks/useAudio'
+import { GESTURE_HELP, PAUSE_GESTURE_HELP } from '../gestures/GestureTypes'
 
 export function LandingScreen() {
   const setGameState = useGameStore((s) => s.setGameState)
@@ -10,32 +12,20 @@ export function LandingScreen() {
       className="flex flex-col items-center justify-center w-full h-full relative overflow-hidden"
       style={{ background: 'var(--color-bg)' }}
     >
-      {/* Ambient background */}
       <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0,229,255,0.06) 0%, transparent 80%)' }} />
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 70%, rgba(124,77,255,0.05) 0%, transparent 70%)' }} />
+        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 40%, rgba(124,77,255,0.08) 0%, transparent 80%)' }} />
 
-      {/* Floating particles */}
-      {Array.from({ length: 12 }).map((_, i) => (
+      {Array.from({ length: 10 }).map((_, i) => (
         <motion.div
           key={i}
           className="absolute w-1 h-1 rounded-full"
           style={{
             background: i % 2 === 0 ? 'var(--color-primary)' : 'var(--color-secondary)',
-            left: `${Math.random() * 100}%`,
-            top: `${Math.random() * 100}%`,
+            left: `${(i * 37 + 10) % 100}%`,
+            top: `${(i * 53 + 5) % 100}%`,
           }}
-          animate={{
-            y: [0, -30, 0],
-            opacity: [0.2, 0.8, 0.2],
-            scale: [1, 1.5, 1],
-          }}
-          transition={{
-            duration: 3 + Math.random() * 3,
-            repeat: Infinity,
-            delay: Math.random() * 3,
-          }}
+          animate={{ y: [0, -20, 0], opacity: [0.2, 0.7, 0.2] }}
+          transition={{ duration: 3 + i * 0.3, repeat: Infinity, delay: i * 0.2 }}
         />
       ))}
 
@@ -45,95 +35,80 @@ export function LandingScreen() {
         transition={{ duration: 0.7 }}
         className="z-10 flex flex-col items-center text-center px-6 max-w-2xl"
       >
-        {/* Icon */}
-        <div className="relative mb-8">
-          <motion.div
-            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            <Hand className="w-24 h-24" style={{ color: 'var(--color-primary)' }} />
+        <div className="relative mb-6">
+          <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ duration: 4, repeat: Infinity }}>
+            <Wand2 className="w-20 h-20" style={{ color: 'var(--color-secondary)' }} />
           </motion.div>
-          <div className="absolute inset-0 blur-2xl rounded-full opacity-30"
-            style={{ background: 'var(--color-primary)' }} />
         </div>
 
-        <h1 className="text-7xl md:text-9xl font-black tracking-tighter mb-3 leading-none"
+        <h1
+          className="text-5xl md:text-7xl font-black tracking-tight mb-2 leading-none"
           style={{
-            backgroundImage: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)',
+            backgroundImage: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 50%, #f97316 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            filter: 'drop-shadow(0 0 30px rgba(0,229,255,0.3))',
-          }}>
-          HAND STRIKE
+          }}
+        >
+          The Spellcaster&apos;s Academy
         </h1>
 
-        <p className="text-xl mb-6 font-light" style={{ color: 'var(--color-text-muted)' }}>
-          Your hand is the weapon. Destroy targets. Survive.
+        <p className="text-lg mb-6 font-light" style={{ color: 'var(--color-text-muted)' }}>
+          Use your hands to defend the barrier. Master five elemental spells.
         </p>
 
-        {/* ── Beautiful Gameplay Instructions Card ── */}
-        <div className="glass rounded-3xl p-6 w-full max-w-xl text-left border-themed mb-8 flex flex-col gap-4">
-          <h2 className="text-xs font-bold tracking-widest uppercase text-center mb-1" style={{ color: 'var(--color-primary)' }}>
-            HOW TO PLAY & CONTROLS
+        <div className="glass rounded-3xl p-5 w-full max-w-lg text-left border-themed mb-6">
+          <h2 className="text-xs font-bold tracking-widest uppercase text-center mb-3" style={{ color: 'var(--color-primary)' }}>
+            How It Works
           </h2>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="flex flex-col gap-1">
-              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
-                🖐️ 1. Setup & Calibration
-              </span>
-              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
-                Allow camera access, then follow the 5-step wizard to calibrate the gestures to your hand's unique sizing.
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
-                ⚔ 2. Attack & Defense
-              </span>
-              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
-                Use <b>Swipe</b> to slash incoming red target spheres. Hold an <b>Open Palm</b> to raise your defense shield.
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
-                💥 3. Special Powers
-              </span>
-              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
-                Make a tight <b>Fist</b> to release a screen-clearing shockwave. Hold <b>Pinch</b> to charge up your energy meter.
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="font-bold flex items-center gap-1.5" style={{ color: 'var(--color-text)' }}>
-                ⚙ 4. System Shortcuts
-              </span>
-              <span style={{ color: 'var(--color-text-muted)' }} className="leading-relaxed">
-                Form a <b>Peace Sign (✌️)</b> anytime to toggle settings. Flash a <b>Thumbs Up (👍)</b> to quickly resume or start gameplay.
-              </span>
-            </div>
-          </div>
+          <ul className="text-sm space-y-3" style={{ color: 'var(--color-text-muted)' }}>
+            <li>
+              🔥 <b>Tight Fist</b> — {GESTURE_HELP.fist.effect}
+              <div className="text-xs mt-0.5 opacity-80">{GESTURE_HELP.fist.howTo}</div>
+            </li>
+            <li>
+              🛡️ <b>Open Palm</b> — {GESTURE_HELP.open_palm.effect}
+              <div className="text-xs mt-0.5 opacity-80">{GESTURE_HELP.open_palm.howTo}</div>
+            </li>
+            <li>
+              ⚡ <b>L-Shape</b> — {GESTURE_HELP.l_shape.effect}
+              <div className="text-xs mt-0.5 opacity-80">{GESTURE_HELP.l_shape.howTo}</div>
+            </li>
+            <li>
+              🤘 <b>Horns Sign</b> — {GESTURE_HELP.rock_on.effect}
+              <div className="text-xs mt-0.5 opacity-80">{GESTURE_HELP.rock_on.howTo}</div>
+            </li>
+            <li>
+              💧 <b>OK Sign</b> — {GESTURE_HELP.ok_sign.effect}
+              <div className="text-xs mt-0.5 opacity-80">{GESTURE_HELP.ok_sign.howTo}</div>
+            </li>
+            <li className="pt-1 border-t" style={{ borderColor: 'var(--color-border)' }}>
+              ⏸️ <b>Pause / Resume</b> — {PAUSE_GESTURE_HELP.effect}
+              <div className="text-xs mt-0.5 opacity-80">{PAUSE_GESTURE_HELP.howTo}</div>
+            </li>
+          </ul>
         </div>
 
         <motion.button
-          whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(0,229,255,0.4)' }}
+          whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.96 }}
-          onClick={() => setGameState('permissions')}
-          className="flex items-center gap-3 px-12 py-4 rounded-2xl font-black text-xl tracking-widest uppercase cursor-pointer"
+          onClick={() => {
+            audio.unlock()
+            audio.playClick()
+            setGameState('permissions')
+          }}
+          className="flex items-center gap-3 px-10 py-4 rounded-2xl font-black text-lg tracking-widest uppercase cursor-pointer"
           style={{
             background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
             color: 'white',
             boxShadow: '0 0 20px rgba(0,229,255,0.25)',
           }}
         >
-          <Hand className="w-5 h-5" />
-          Enter the Arena
+          Enter the Academy
           <ChevronRight className="w-5 h-5" />
         </motion.button>
 
-        <p className="mt-4 text-[11px]" style={{ color: 'var(--color-text-muted)', opacity: 0.6 }}>
-          Requires webcam for hand tracking • Processed 100% locally in your browser
+        <p className="mt-3 text-[11px]" style={{ color: 'var(--color-text-muted)', opacity: 0.6 }}>
+          Webcam required • Processed locally in your browser
         </p>
       </motion.div>
     </div>

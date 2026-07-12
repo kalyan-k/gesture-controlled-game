@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { LeftPanel } from './LeftPanel'
-import { GameplayScreen } from './GameplayScreen'
+import { SpellcasterCanvas } from './SpellcasterCanvas'
 import { useHandTracking } from '../hooks/useHandTracking'
 import { useGameStore } from '../store/gameStore'
 import { GestureFeedback } from './GestureFeedback'
 import { SettingsModal } from './SettingsModal'
+import { TrainingIntroOverlay } from './TrainingIntroOverlay'
+import { GameOverOverlay } from './GameOverOverlay'
+import { TRAINING_GESTURES, type SpellGesture } from '../gestures/GestureTypes'
+import { getPlayZoneDisplayBounds } from '../game/handMapping'
+import { audio } from '../hooks/useAudio'
 
-// Hand connections for webcam skeleton overlay
 const HAND_CONNECTIONS = [
   [0,1],[1,2],[2,3],[3,4],
   [0,5],[5,6],[6,7],[7,8],
@@ -18,9 +22,26 @@ const HAND_CONNECTIONS = [
 export function DashboardScreen() {
   const { videoRef, landmarks, gestureResult, confidence } = useHandTracking()
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const { isCameraReady, settings, idleWarning } = useGameStore()
+  const { isCameraReady, settings, stage } = useGameStore()
 
-  // Draw skeleton on the webcam canvas (left panel)
+  const handCenter = gestureResult.handCenter ?? null
+  const playPosition = gestureResult.playPosition ?? null
+
+  // Training gesture tracker
+  const stageRef = useGameStore((s) => s.stage)
+  const currentGesture = useGameStore((s) => s.currentGesture)
+  const trainingGestures = useGameStore((s) => s.trainingGestures)
+
+  useEffect(() => {
+    if (stageRef !== 'TRAINING_INTRO' || !currentGesture) return
+    const spell = currentGesture as SpellGesture
+    if (TRAINING_GESTURES.includes(spell) && !trainingGestures[spell]) {
+      useGameStore.getState().markTrainingGesture(spell)
+      audio.playTrainingDing()
+    }
+  }, [currentGesture, stageRef, trainingGestures])
+
+  // Draw skeleton on webcam canvas
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -30,9 +51,26 @@ export function DashboardScreen() {
     const h = canvas.height
     ctx.clearRect(0, 0, w, h)
 
+    // Play zone — inner camera area that maps to full game canvas
+    const zone = getPlayZoneDisplayBounds()
+    const zx = zone.left * w
+    const zy = zone.top * h
+    const zw = zone.width * w
+    const zh = zone.height * h
+    ctx.strokeStyle = settings.theme === 'light' ? 'rgba(0,119,255,0.45)' : 'rgba(0,229,255,0.45)'
+    ctx.lineWidth = 2
+    ctx.setLineDash([6, 4])
+    ctx.strokeRect(zx, zy, zw, zh)
+    ctx.setLineDash([])
+    ctx.fillStyle = settings.theme === 'light' ? 'rgba(0,119,255,0.04)' : 'rgba(0,229,255,0.06)'
+    ctx.fillRect(zx, zy, zw, zh)
+    ctx.font = '9px Inter, system-ui, sans-serif'
+    ctx.fillStyle = settings.theme === 'light' ? '#0077ff' : '#00e5ff'
+    ctx.fillText('AIM ZONE → full play area', zx + 4, zy + 12)
+
     if (landmarks.length > 0) {
       ctx.strokeStyle = settings.theme === 'light' ? '#0077ff' : '#00e5ff'
-      ctx.lineWidth = 3
+      ctx.lineWidth = 2
       for (const [a, b] of HAND_CONNECTIONS) {
         ctx.beginPath()
         ctx.moveTo(landmarks[a].x * w, landmarks[a].y * h)
@@ -42,47 +80,54 @@ export function DashboardScreen() {
       ctx.fillStyle = settings.theme === 'light' ? '#00b37d' : '#00ffb3'
       for (const lm of landmarks) {
         ctx.beginPath()
-        ctx.arc(lm.x * w, lm.y * h, 5, 0, Math.PI * 2)
+        ctx.arc(lm.x * w, lm.y * h, 4, 0, Math.PI * 2)
         ctx.fill()
       }
     }
-  }, [landmarks, settings.theme])
+
+    // Mapped crosshair dot on camera (bitmap coords; canvas is CSS-mirrored)
+    if (playPosition) {
+      const px = (1 - playPosition.x) * w
+      const py = playPosition.y * h
+      ctx.strokeStyle = '#00ffb3'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(px, py, 10, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.fillStyle = '#00ffb3'
+      ctx.beginPath()
+      ctx.arc(px, py, 3, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }, [landmarks, settings.theme, playPosition])
 
   return (
     <div
-      className="w-full h-full flex flex-col md:grid md:grid-cols-[30%_70%] overflow-hidden relative"
+      className="w-full h-full grid grid-cols-4 overflow-hidden relative"
       style={{ background: 'var(--color-bg)' }}
     >
-      {/* Ambient glows */}
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] pointer-events-none"
+      <div className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[120px] pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(0,229,255,0.05), transparent)' }} />
-      <div className="absolute bottom-0 left-1/3 w-[500px] h-[400px] rounded-full blur-[120px] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(124,77,255,0.05), transparent)' }} />
 
-      {/* Left Panel */}
+      {/* Left Column — 25% */}
       <LeftPanel
         videoRef={videoRef}
         canvasRef={canvasRef}
         confidence={confidence}
         isReady={isCameraReady}
+        handCenter={handCenter}
+        playPosition={playPosition}
       />
 
-      {/* Right Panel */}
-      <div className="relative h-full w-full" style={{ borderLeft: '1px solid var(--color-border)' }}>
-        <GameplayScreen landmarks={landmarks} gestureResult={gestureResult} />
+      {/* Right Column — 75% */}
+      <div className="col-span-3 relative h-full" style={{ borderLeft: '1px solid var(--color-border)' }}>
+        <SpellcasterCanvas gestureResult={gestureResult} />
         <GestureFeedback />
 
-        {/* Hand-lost idle warning */}
-        {idleWarning && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-40 pointer-events-none"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}>
-            <p className="text-5xl font-black mb-2" style={{ color: 'var(--color-danger)' }}>✋ Hand Lost</p>
-            <p style={{ color: 'var(--color-text-muted)' }}>Show your hand to resume tracking</p>
-          </div>
-        )}
+        {stage === 'TRAINING_INTRO' && <TrainingIntroOverlay />}
+        <GameOverOverlay />
       </div>
 
-      {/* Settings modal (global overlay) */}
       <SettingsModal />
     </div>
   )

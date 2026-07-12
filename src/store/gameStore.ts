@@ -1,26 +1,23 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { SpellGesture } from '../gestures/GestureTypes'
+import { TRAINING_GESTURES } from '../gestures/GestureTypes'
 
-export type GameState =
-  | 'landing'         // Welcome / permissions check
-  | 'permissions'     // Explicit camera permission request
-  | 'calibration'     // 5-step guided calibration
-  | 'ready'           // System ready, idle – waiting for START GAME
-  | 'playing'
-  | 'paused'
-  | 'gameover'
-  | 'dashboard'       // Dashboard idle (between calibration/playing, camera on)
-  | 'settings'        // Settings modal open (overlaid)
+export type GameStage = 'TRAINING_INTRO' | 'PLAYING' | 'GAME_OVER'
 
 export type Theme = 'dark' | 'light'
 
-// Calibration thresholds personalised per player
+export type GameState =
+  | 'landing'
+  | 'permissions'
+  | 'dashboard'
+
 export interface CalibrationProfile {
-  pinchThreshold: number   // distance 0–1 for pinch
-  fistCurlRatio: number    // tip/mcp ratio for fist
-  swipeMinDist: number     // min normalized distance
-  swipeMinVel: number      // min velocity
-  palmExtendRatio: number  // tip/pip extension ratio
+  pinchThreshold: number
+  fistCurlRatio: number
+  swipeMinDist: number
+  swipeMinVel: number
+  palmExtendRatio: number
 }
 
 const DEFAULT_CALIBRATION: CalibrationProfile = {
@@ -32,18 +29,18 @@ const DEFAULT_CALIBRATION: CalibrationProfile = {
 }
 
 export interface Settings {
-  musicVolume: number     // 0–100
-  sfxVolume: number       // 0–100
-  sensitivity: number     // 0–100
-  trackingSmoothing: number // 0–100
+  musicVolume: number
+  sfxVolume: number
+  sensitivity: number
+  trackingSmoothing: number
   showDebugOverlay: boolean
-  camera: string          // deviceId or 'default'
-  gestureSensitivity: number // 0–100
+  camera: string
+  gestureSensitivity: number
   theme: Theme
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  musicVolume: 50,
+  musicVolume: 40,
   sfxVolume: 80,
   sensitivity: 70,
   trackingSmoothing: 60,
@@ -53,242 +50,276 @@ const DEFAULT_SETTINGS: Settings = {
   theme: 'dark',
 }
 
+const MAX_COMBO_MULTIPLIER = 5.0
+const COMBO_INCREMENT = 0.1
+const SPELL_WEAVER_WINDOW_MS = 15_000
+
+function emptyTrainingChecklist(): Record<SpellGesture, boolean> {
+  return {
+    fist: false,
+    open_palm: false,
+    l_shape: false,
+    rock_on: false,
+    ok_sign: false,
+  }
+}
+
 interface GameStore {
-  // Flow state
   gameState: GameState
-  previousGameState: GameState | null // for returning from settings
+  stage: GameStage
+  trainingComplete: boolean
+  trainingGestures: Record<SpellGesture, boolean>
+  skipTrainingOnRetry: boolean
 
-  // Game stats
   score: number
-  combo: number
-  maxCombo: number
-  health: number
-  energy: number
-  level: number
-  targetsDestroyed: number
-  accuracy: number
-  totalSwipes: number
+  highScore: number
+  comboMultiplier: number
+  maxComboMultiplier: number
+  barrierHealth: number
 
-  // Session stats
-  sessionStart: number | null
-  sessionDuration: number  // seconds
-  gesturesDetected: number
-  avgFps: number
-  orbEnergyUsed: number
-
-  // Runtime
   fps: number
   currentGesture: string | null
+  lastCastGesture: SpellGesture | null
   isCameraReady: boolean
   isHandDetected: boolean
-  lastHandSeenAt: number | null  // timestamp for idle detection
-  idleWarning: boolean           // true when > 10s without hand
-  showSystemFeedback: string | null // e.g. "GAME PAUSED"
+  lastHandSeenAt: number | null
+  idleWarning: boolean
+  handMissingPause: boolean
+  isPaused: boolean
+  showSystemFeedback: string | null
+  showSettings: boolean
 
-  // Settings & calibration
   settings: Settings
   calibration: CalibrationProfile
-  isCalibrated: boolean
 
-  // Actions
+  // Spell weaver tracking
+  recentSpells: { spell: SpellGesture; time: number }[]
+
   setGameState: (state: GameState) => void
-  openSettings: () => void
-  closeSettings: () => void
+  setStage: (stage: GameStage) => void
+  markTrainingGesture: (gesture: SpellGesture) => void
+  isTrainingComplete: () => boolean
 
-  addScore: (points: number) => void
-  resetCombo: () => void
-  takeDamage: (amount: number) => void
-  useEnergy: (amount: number) => void
-  chargeEnergy: (amount: number) => void
-  recordSwipe: (hit: boolean) => void
+  addHitScore: (basePoints: number, bullseye?: boolean) => number
+  applySpellWeaverBonus: () => number
+  resetComboMultiplier: () => void
+  recordSpellCast: (spell: SpellGesture) => void
+  takeBarrierDamage: (amount: number) => void
 
   setFps: (fps: number) => void
   setCurrentGesture: (gesture: string | null) => void
   setCameraReady: (ready: boolean) => void
   setHandDetected: (detected: boolean, timestamp: number) => void
+  setHandMissingPause: (v: boolean) => void
   setIdleWarning: (w: boolean) => void
+  setPaused: (paused: boolean) => void
+  togglePause: () => void
+  openSettings: () => void
+  closeSettings: () => void
   showFeedback: (msg: string) => void
   hideFeedback: () => void
 
   updateSettings: (partial: Partial<Settings>) => void
   updateCalibration: (profile: CalibrationProfile) => void
-  setCalibrated: (v: boolean) => void
 
-  startSession: () => void
+  startAssault: () => void
+  retryFromGameOver: () => void
+  resetAll: () => void
   tickSession: (fps: number) => void
-
-  resetGame: () => void
 }
 
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
-      // Flow
       gameState: 'landing',
-      previousGameState: null,
+      stage: 'TRAINING_INTRO',
+      trainingComplete: false,
+      trainingGestures: emptyTrainingChecklist(),
+      skipTrainingOnRetry: false,
 
-      // Game stats
       score: 0,
-      combo: 0,
-      maxCombo: 0,
-      health: 100,
-      energy: 100,
-      level: 1,
-      targetsDestroyed: 0,
-      accuracy: 100,
-      totalSwipes: 0,
+      highScore: 0,
+      comboMultiplier: 1.0,
+      maxComboMultiplier: 1.0,
+      barrierHealth: 100,
 
-      // Session
-      sessionStart: null,
-      sessionDuration: 0,
-      gesturesDetected: 0,
-      avgFps: 0,
-      orbEnergyUsed: 0,
-
-      // Runtime (not persisted)
       fps: 0,
       currentGesture: null,
+      lastCastGesture: null,
       isCameraReady: false,
       isHandDetected: false,
       lastHandSeenAt: null,
       idleWarning: false,
+      handMissingPause: false,
+      isPaused: false,
       showSystemFeedback: null,
+      showSettings: false,
 
-      // Settings & calibration (persisted)
       settings: DEFAULT_SETTINGS,
       calibration: DEFAULT_CALIBRATION,
-      isCalibrated: false,
-
-      // ── Actions ──────────────────────────────────────────────
+      recentSpells: [],
 
       setGameState: (state) => set({ gameState: state }),
 
-      openSettings: () => {
-        const prev = get().gameState
-        if (prev !== 'settings') {
-          set({ previousGameState: prev, gameState: 'settings' })
-        }
-      },
+      setStage: (stage) => set({ stage }),
 
-      closeSettings: () => {
-        const prev = get().previousGameState
-        set({ gameState: prev ?? 'dashboard', previousGameState: null })
-      },
-
-      addScore: (points) =>
-        set((state) => {
-          const newCombo = state.combo + 1
-          const newLevel = Math.floor(state.targetsDestroyed / 10) + 1
+      markTrainingGesture: (gesture) =>
+        set((s) => {
+          const updated = { ...s.trainingGestures, [gesture]: true }
+          const complete = TRAINING_GESTURES.every((g) => updated[g])
           return {
-            score: state.score + points * newCombo,
-            combo: newCombo,
-            maxCombo: Math.max(state.maxCombo, newCombo),
-            targetsDestroyed: state.targetsDestroyed + 1,
-            level: newLevel,
-            gesturesDetected: state.gesturesDetected + 1,
+            trainingGestures: updated,
+            trainingComplete: complete,
           }
         }),
 
-      resetCombo: () => set({ combo: 0 }),
+      isTrainingComplete: () => {
+        const g = get().trainingGestures
+        return TRAINING_GESTURES.every((k) => g[k])
+      },
 
-      takeDamage: (amount) =>
-        set((state) => {
-          const newHealth = Math.max(0, state.health - amount)
-          if (newHealth === 0) return { health: 0, gameState: 'gameover' }
-          return { health: newHealth }
-        }),
+      addHitScore: (basePoints, bullseye = false) => {
+        const state = get()
+        const newMultiplier = Math.min(MAX_COMBO_MULTIPLIER, state.comboMultiplier + COMBO_INCREMENT)
+        let points = Math.round(basePoints * newMultiplier)
+        if (bullseye) points += 200
 
-      useEnergy: (amount) =>
-        set((state) => ({
-          energy: Math.max(0, state.energy - amount),
-          orbEnergyUsed: state.orbEnergyUsed + amount,
-        })),
+        set({
+          score: state.score + points,
+          highScore: Math.max(state.highScore, state.score + points),
+          comboMultiplier: newMultiplier,
+          maxComboMultiplier: Math.max(state.maxComboMultiplier, newMultiplier),
+        })
+        return points
+      },
 
-      chargeEnergy: (amount) =>
-        set((state) => ({ energy: Math.min(100, state.energy + amount) })),
+      applySpellWeaverBonus: () => {
+        const bonus = 1000
+        set((s) => ({
+          score: s.score + bonus,
+          highScore: Math.max(s.highScore, s.score + bonus),
+        }))
+        return bonus
+      },
 
-      recordSwipe: (hit) =>
-        set((state) => {
-          const newTotal = state.totalSwipes + 1
-          const hits = (state.accuracy / 100) * state.totalSwipes + (hit ? 1 : 0)
+      resetComboMultiplier: () => set({ comboMultiplier: 1.0 }),
+
+      recordSpellCast: (spell) => {
+        const now = Date.now()
+        set((s) => {
+          const recent = [...s.recentSpells, { spell, time: now }].filter(
+            (e) => now - e.time < SPELL_WEAVER_WINDOW_MS
+          )
           return {
-            totalSwipes: newTotal,
-            accuracy: Math.round((hits / newTotal) * 100),
+            lastCastGesture: spell,
+            recentSpells: recent,
           }
+        })
+      },
+
+      takeBarrierDamage: (amount) =>
+        set((s) => {
+          const newHealth = Math.max(0, s.barrierHealth - amount)
+          if (newHealth === 0) {
+            return {
+              barrierHealth: 0,
+              comboMultiplier: 1.0,
+              stage: 'GAME_OVER' as GameStage,
+              highScore: Math.max(s.highScore, s.score),
+            }
+          }
+          return { barrierHealth: newHealth, comboMultiplier: 1.0 }
         }),
 
       setFps: (fps) => set({ fps }),
-
-      setCurrentGesture: (gesture) =>
-        set((state) => ({
-          currentGesture: gesture,
-          gesturesDetected:
-            gesture && gesture !== 'none'
-              ? state.gesturesDetected + 1
-              : state.gesturesDetected,
-        })),
-
+      setCurrentGesture: (gesture) => set({ currentGesture: gesture }),
       setCameraReady: (ready) => set({ isCameraReady: ready }),
 
       setHandDetected: (detected, timestamp) =>
         set({
           isHandDetected: detected,
           lastHandSeenAt: detected ? timestamp : get().lastHandSeenAt,
-          idleWarning: false,
         }),
 
+      setHandMissingPause: (v) => set({ handMissingPause: v, idleWarning: v }),
+
       setIdleWarning: (w) => set({ idleWarning: w }),
+
+      setPaused: (paused) => set({ isPaused: paused }),
+
+      togglePause: () => set((s) => ({ isPaused: !s.isPaused })),
+
+      openSettings: () => set({ showSettings: true }),
+      closeSettings: () => set({ showSettings: false }),
 
       showFeedback: (msg) => set({ showSystemFeedback: msg }),
       hideFeedback: () => set({ showSystemFeedback: null }),
 
       updateSettings: (partial) =>
-        set((state) => ({ settings: { ...state.settings, ...partial } })),
+        set((s) => ({ settings: { ...s.settings, ...partial } })),
 
       updateCalibration: (profile) => set({ calibration: profile }),
-      setCalibrated: (v) => set({ isCalibrated: v }),
 
-      startSession: () =>
-        set({ sessionStart: Date.now(), sessionDuration: 0, orbEnergyUsed: 0 }),
-
-      tickSession: (fps) =>
-        set((state) => {
-          const now = Date.now()
-          const elapsed = state.sessionStart
-            ? (now - state.sessionStart) / 1000
-            : 0
-          const newAvg =
-            state.avgFps === 0 ? fps : (state.avgFps * 0.95 + fps * 0.05)
-          return { sessionDuration: elapsed, avgFps: newAvg, fps }
-        }),
-
-      resetGame: () =>
+      startAssault: () =>
         set({
-          gameState: 'dashboard',
+          stage: 'PLAYING',
           score: 0,
-          combo: 0,
-          health: 100,
-          energy: 100,
-          level: 1,
-          targetsDestroyed: 0,
-          totalSwipes: 0,
-          accuracy: 100,
-          currentGesture: null,
-          gesturesDetected: 0,
-          sessionStart: null,
-          sessionDuration: 0,
-          orbEnergyUsed: 0,
-          idleWarning: false,
+          comboMultiplier: 1.0,
+          maxComboMultiplier: 1.0,
+          barrierHealth: 100,
+          recentSpells: [],
+          isPaused: false,
+          handMissingPause: false,
         }),
+
+      retryFromGameOver: () =>
+        set((s) => ({
+          stage: 'PLAYING',
+          score: 0,
+          comboMultiplier: 1.0,
+          maxComboMultiplier: 1.0,
+          barrierHealth: 100,
+          recentSpells: [],
+          isPaused: false,
+          handMissingPause: false,
+          skipTrainingOnRetry: true,
+          highScore: Math.max(s.highScore, s.score),
+        })),
+
+      resetAll: () =>
+        set({
+          stage: 'TRAINING_INTRO',
+          score: 0,
+          comboMultiplier: 1.0,
+          maxComboMultiplier: 1.0,
+          barrierHealth: 100,
+          trainingGestures: emptyTrainingChecklist(),
+          trainingComplete: false,
+          skipTrainingOnRetry: false,
+          recentSpells: [],
+          isPaused: false,
+          handMissingPause: false,
+        }),
+
+      tickSession: (fps) => set({ fps }),
     }),
     {
-      name: 'hand-strike-store',
-      // Only persist settings + calibration, not runtime state
+      name: 'spellcaster-academy-store',
       partialize: (state) => ({
         settings: state.settings,
         calibration: state.calibration,
-        isCalibrated: state.isCalibrated,
+        highScore: state.highScore,
+        trainingComplete: state.trainingComplete,
+        trainingGestures: state.trainingGestures,
       }),
     }
   )
 )
+
+/** Check if all 5 spells were cast within rolling window */
+export function checkSpellWeaver(recentSpells: { spell: SpellGesture; time: number }[]): boolean {
+  const now = Date.now()
+  const recent = recentSpells.filter((e) => now - e.time < SPELL_WEAVER_WINDOW_MS)
+  const unique = new Set(recent.map((e) => e.spell))
+  return unique.size === TRAINING_GESTURES.length
+}

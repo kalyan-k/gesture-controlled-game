@@ -4,18 +4,14 @@ import { Sun, Moon } from 'lucide-react'
 import { useGameStore } from './store/gameStore'
 import { LandingScreen } from './components/LandingScreen'
 import { PermissionsScreen } from './components/PermissionsScreen'
-import { GuidedCalibrationScreen } from './components/GuidedCalibrationScreen'
-import { ReadyScreen } from './components/ReadyScreen'
 import { DashboardScreen } from './components/DashboardScreen'
-
-const PLAYING_STATES = ['dashboard', 'playing', 'paused', 'settings']
+import { audio } from './hooks/useAudio'
 
 function App() {
-  const { gameState, score, maxCombo, targetsDestroyed, sessionDuration, resetGame, settings, updateSettings } = useGameStore()
+  const { gameState, settings, updateSettings } = useGameStore()
 
-  // Apply persisted theme on first load
   useEffect(() => {
-    const saved = localStorage.getItem('hand-strike-theme') ?? settings.theme
+    const saved = localStorage.getItem('spellcaster-theme') ?? settings.theme
     if (saved === 'light') document.documentElement.classList.add('light')
     else document.documentElement.classList.remove('light')
   }, [])
@@ -23,62 +19,46 @@ function App() {
   const isDark = settings.theme === 'dark'
 
   const toggleTheme = () => {
+    audio.unlock()
+    audio.playClick()
     const nextTheme = isDark ? 'light' : 'dark'
     updateSettings({ theme: nextTheme })
     if (nextTheme === 'light') {
       document.documentElement.classList.add('light')
-      localStorage.setItem('hand-strike-theme', 'light')
+      localStorage.setItem('spellcaster-theme', 'light')
     } else {
       document.documentElement.classList.remove('light')
-      localStorage.setItem('hand-strike-theme', 'dark')
+      localStorage.setItem('spellcaster-theme', 'dark')
     }
   }
-
-  const showDashboard = PLAYING_STATES.includes(gameState)
 
   return (
     <div
       className="w-screen h-screen overflow-hidden font-sans relative"
       style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
     >
-      {/* Floating Global Theme Switcher */}
-      <div className="absolute top-6 right-6 z-50">
+      {/* Global theme toggle */}
+      <div className="absolute top-4 right-4 z-50">
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
           onClick={toggleTheme}
-          className="p-3 rounded-full glass border border-themed flex items-center justify-center shadow-lg transition-colors cursor-pointer"
+          className="p-2.5 rounded-full glass border border-themed flex items-center justify-center shadow-lg cursor-pointer"
           style={{ background: 'var(--color-bg-panel)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           title={`Switch to ${isDark ? 'Light' : 'Dark'} Mode`}
         >
-          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </motion.button>
       </div>
 
       <AnimatePresence mode="wait">
-
-        {/* ── Landing ─────────────────────────────── */}
         {gameState === 'landing' && (
           <Page key="landing"><LandingScreen /></Page>
         )}
-
-        {/* ── Camera Permissions ──────────────────── */}
         {gameState === 'permissions' && (
           <Page key="permissions"><PermissionsScreen /></Page>
         )}
-
-        {/* ── Guided Calibration ──────────────────── */}
-        {gameState === 'calibration' && (
-          <Page key="calibration"><GuidedCalibrationScreen /></Page>
-        )}
-
-        {/* ── Ready Screen (idle, waiting for START) ─ */}
-        {gameState === 'ready' && (
-          <Page key="ready"><ReadyScreen /></Page>
-        )}
-
-        {/* ── Game Dashboard (playing / paused / settings) ── */}
-        {showDashboard && (
+        {gameState === 'dashboard' && (
           <motion.div
             key="dashboard"
             initial={{ opacity: 0 }}
@@ -89,79 +69,12 @@ function App() {
             <DashboardScreen />
           </motion.div>
         )}
-
-        {/* ── Game Over ───────────────────────────── */}
-        {gameState === 'gameover' && (
-          <motion.div
-            key="gameover"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0"
-          >
-            {/* Dashboard still visible underneath */}
-            <DashboardScreen />
-
-            {/* Game Over overlay */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 flex flex-col items-center justify-center z-50"
-              style={{ background: 'rgba(5,8,22,0.92)', backdropFilter: 'blur(16px)' }}
-            >
-              <motion.h1
-                animate={{ opacity: [0.6, 1, 0.6] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="font-black text-center leading-none mb-4"
-                style={{
-                  fontSize: 'clamp(3rem, 12vw, 8rem)',
-                  backgroundImage: 'linear-gradient(180deg, var(--color-danger) 0%, #7f1d1d 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 0 30px rgba(255,77,109,0.6))',
-                }}
-              >
-                SYSTEM<br />FAILURE
-              </motion.h1>
-
-              <div className="glass rounded-3xl p-8 w-full max-w-lg mb-10"
-                style={{ border: '1px solid rgba(255,77,109,0.25)' }}>
-                <div className="grid grid-cols-3 gap-6 text-center">
-                  <Stat label="SCORE" value={score} />
-                  <Stat label="MAX COMBO" value={`${maxCombo}x`} color="var(--color-secondary)" />
-                  <Stat label="KILLS" value={targetsDestroyed} color="var(--color-primary)" />
-                </div>
-                <div className="mt-4 pt-4 text-center"
-                  style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                    Session: {Math.floor(sessionDuration / 60)}m {Math.floor(sessionDuration % 60)}s
-                  </span>
-                </div>
-              </div>
-
-              <motion.button
-                whileHover={{ scale: 1.06 }}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => resetGame()}
-                className="px-14 py-5 rounded-2xl font-black text-xl tracking-[0.2em] uppercase"
-                style={{
-                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))',
-                  color: 'white',
-                  boxShadow: '0 0 30px rgba(0,229,255,0.4)',
-                }}
-              >
-                Restart Sequence
-              </motion.button>
-            </motion.div>
-          </motion.div>
-        )}
-
       </AnimatePresence>
     </div>
   )
 }
 
-function Page({ children, key: _ }: { children: React.ReactNode; key?: string }) {
+function Page({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
       className="absolute inset-0"
@@ -172,19 +85,6 @@ function Page({ children, key: _ }: { children: React.ReactNode; key?: string })
     >
       {children}
     </motion.div>
-  )
-}
-
-function Stat({ label, value, color }: { label: string; value: string | number; color?: string }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-[10px] font-bold tracking-widest" style={{ color: 'var(--color-text-muted)' }}>
-        {label}
-      </span>
-      <span className="text-4xl font-mono font-black" style={{ color: color ?? 'var(--color-text)' }}>
-        {value}
-      </span>
-    </div>
   )
 }
 

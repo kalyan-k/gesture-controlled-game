@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Camera, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import { useGameStore } from '../store/gameStore'
+import { audio } from '../hooks/useAudio'
 
 type PermState = 'checking' | 'granted' | 'prompt' | 'denied'
 
@@ -89,7 +90,10 @@ export function PermissionsScreen() {
             <motion.button
               whileHover={{ scale: 1.06 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setGameState('calibration')}
+              onClick={() => {
+                audio.unlock()
+                setGameState('dashboard')
+              }}
               className="mt-4 px-12 py-4 rounded-2xl font-black text-xl tracking-widest uppercase"
               style={{
                 background: 'var(--color-primary)',
@@ -112,7 +116,7 @@ export function PermissionsScreen() {
               ⚠ Camera Access Required
             </h2>
             <p style={{ color: 'var(--color-text-muted)' }} className="text-lg">
-              HAND STRIKE uses your webcam for real-time hand tracking. No footage is stored or transmitted.
+              The Spellcaster&apos;s Academy uses your webcam for real-time hand tracking. No footage is stored or transmitted.
             </p>
             <motion.button
               whileHover={{ scale: 1.06 }}
