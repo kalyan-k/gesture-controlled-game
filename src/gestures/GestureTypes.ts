@@ -25,6 +25,8 @@ export interface GestureResult {
   handCenter?: { x: number; y: number }
   /** Mapped 0–1 position on the game canvas (from camera play zone) */
   playPosition?: { x: number; y: number }
+  /** Raw mirrored 0–1 X for block breaker paddle (no smoothing) */
+  paddleX?: number
   stabilityMs?: number
   isSystemGesture?: boolean
 }

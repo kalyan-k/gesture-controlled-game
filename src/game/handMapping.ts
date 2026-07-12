@@ -56,6 +56,11 @@ export function smoothPoint(prev: Point2D, next: Point2D, factor = 0.35): Point2
   }
 }
 
+/** Map hand center → paddle X (0–1), using camera play-zone inset */
+export function mapHandToPaddleX(raw: Point2D): number {
+  return mapHandToPlayArea(raw).x
+}
+
 /** True if raw hand center is inside the play zone (still tracking comfortably) */
 export function isInsidePlayZone(raw: Point2D): boolean {
   const mx = 1 - raw.x

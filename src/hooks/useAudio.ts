@@ -129,7 +129,6 @@ class AudioEngine {
     }, 150)
   }
 
-  /** Distinct knockout sting per element — richer for elite (500pt) foes */
   playKnockout(element: string, elite: boolean) {
     const vol = elite ? 0.32 : 0.24
     const gap = elite ? 90 : 65
@@ -169,6 +168,34 @@ class AudioEngine {
 
   playMiss() {
     this.playOnce('miss', () => this.tone(200, 0.2, 'sawtooth', 0.15, 80), 350)
+  }
+
+  playBrickHit() {
+    this.playOnce('brick', () => this.tone(520 + Math.random() * 80, 0.08, 'square', 0.18), 60)
+  }
+
+  playWallBounce() {
+    this.playOnce('wall', () => this.tone(280, 0.05, 'sine', 0.1), 40)
+  }
+
+  playPowerUpCatch() {
+    this.playOnce('powerup', () => {
+      this.tone(440, 0.1, 'sine', 0.22)
+      setTimeout(() => this.tone(660, 0.14, 'sine', 0.2), 70)
+      setTimeout(() => this.tone(880, 0.18, 'triangle', 0.18), 140)
+    }, 120)
+  }
+
+  playLifeLost() {
+    this.playOnce('life_lost', () => this.tone(180, 0.3, 'sawtooth', 0.2, 90), 400)
+  }
+
+  playLevelUp() {
+    this.playOnce('level_up', () => {
+      ;[523, 659, 784].forEach((f, i) => {
+        setTimeout(() => this.tone(f, 0.12, 'sine', 0.2), i * 80)
+      })
+    }, 500)
   }
 
   playSpellWeaver() {

@@ -3,12 +3,13 @@ import { handTracker } from '../gestures/HandTracker'
 import { GestureRecognizer } from '../gestures/GestureRecognizer'
 import type { Landmark, GestureResult } from '../gestures/GestureTypes'
 import { useGameStore } from '../store/gameStore'
-import { mapHandToPlayArea, smoothPoint } from '../game/handMapping'
+import { useBlockBreakerStore } from '../store/blockBreakerStore'
+import { mapHandToPaddleX, mapHandToPlayArea, smoothPoint, clamp01 } from '../game/handMapping'
 
-/** Frames without landmarks before hand-missing pause (~0.5s at 60fps) */
-const HAND_MISSING_FRAME_THRESHOLD = 30
-/** Confidence threshold — lowered so edge-of-zone tracking still counts */
+const SPELLCASTER_MISSING_FRAMES = 30
+const BLOCK_BREAKER_MISSING_FRAMES = 8
 const TRACKING_CONFIDENCE_MIN = 0.72
+const BLOCK_BREAKER_CONFIDENCE_MIN = 0.58
 
 export function useHandTracking() {
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -18,6 +19,7 @@ export function useHandTracking() {
   const pauseCooldownRef = useRef(0)
   const smoothedPlayRef = useRef({ x: 0.5, y: 0.5 })
   const lastPlayPositionRef = useRef({ x: 0.5, y: 0.5 })
+  const lastPaddleXRef = useRef(0.5)
 
   const [landmarks, setLandmarks] = useState<Landmark[]>([])
   const [gestureResult, setGestureResult] = useState<GestureResult>({
@@ -25,6 +27,7 @@ export function useHandTracking() {
     confidence: 0,
     landmarks: [],
     playPosition: { x: 0.5, y: 0.5 },
+    paddleX: 0.5,
   })
 
   const { calibration } = useGameStore()
@@ -59,72 +62,124 @@ export function useHandTracking() {
           confidence = results.handednesses[0][0].score
         }
 
-        const store = useGameStore.getState()
-        const handVisible = hasLandmarks && confidence > TRACKING_CONFIDENCE_MIN
+        const appStore = useGameStore.getState()
+        const isBlockBreaker = appStore.selectedGame === 'block_breaker'
+        const missingThreshold = isBlockBreaker
+          ? BLOCK_BREAKER_MISSING_FRAMES
+          : SPELLCASTER_MISSING_FRAMES
+        const handVisible = hasLandmarks && confidence > (isBlockBreaker ? BLOCK_BREAKER_CONFIDENCE_MIN : TRACKING_CONFIDENCE_MIN)
 
         if (handVisible) {
           missingHandFramesRef.current = 0
 
           const lms = results!.landmarks![0] as Landmark[]
           setLandmarks(lms)
-          store.setHandDetected(true, now)
-
-          if (store.handMissingPause && store.stage === 'PLAYING') {
-            store.setHandMissingPause(false)
-            store.setPaused(false)
-          }
+          appStore.setHandDetected(true, now)
 
           const gResult = recognizer.current.analyze(lms, now, confidence, {
-            pauseEnabled: store.stage === 'PLAYING' && !store.handMissingPause,
-            trainingMode: store.stage === 'TRAINING_INTRO',
+            pauseEnabled:
+              !isBlockBreaker &&
+              appStore.stage === 'PLAYING' &&
+              !appStore.handMissingPause,
+            trainingMode: !isBlockBreaker && appStore.stage === 'TRAINING_INTRO',
           })
 
-          // Map camera subset → full play area (stay in comfort zone)
-          const mapped = mapHandToPlayArea(gResult.handCenter)
-          smoothedPlayRef.current = smoothPoint(smoothedPlayRef.current, mapped, 0.4)
-          lastPlayPositionRef.current = smoothedPlayRef.current
+          if (isBlockBreaker) {
+            const bb = useBlockBreakerStore.getState()
+            const paddleX = clamp01(mapHandToPaddleX(gResult.handCenter))
+            lastPaddleXRef.current = paddleX
 
-          setGestureResult({
-            gesture: gResult.gesture,
-            confidence,
-            landmarks: lms,
-            handCenter: gResult.handCenter,
-            playPosition: { ...smoothedPlayRef.current },
-            isSystemGesture: gResult.isSystemGesture,
-            stabilityMs: gResult.stabilityMs,
-          })
+            if (bb.handMissingPause && bb.stage === 'PLAYING') {
+              bb.setHandMissingPause(false)
+              bb.setPaused(false)
+            }
 
-          if (
-            gResult.isSystemGesture &&
-            gResult.gesture === 'pause_toggle' &&
-            now > pauseCooldownRef.current &&
-            store.stage === 'PLAYING'
-          ) {
-            pauseCooldownRef.current = now + 2000
-            const wasPaused = store.isPaused
-            store.togglePause()
-            store.showFeedback(wasPaused ? '▶ RESUMED' : '⏸ PAUSED')
-            setTimeout(() => store.hideFeedback(), 1000)
+            setGestureResult({
+              gesture: gResult.gesture,
+              confidence,
+              landmarks: lms,
+              handCenter: gResult.handCenter,
+              paddleX,
+              stabilityMs: gResult.stabilityMs,
+            })
+            appStore.setCurrentGesture(
+              gResult.gesture !== 'none' ? gResult.gesture : null
+            )
+          } else {
+            if (appStore.handMissingPause && appStore.stage === 'PLAYING') {
+              appStore.setHandMissingPause(false)
+              appStore.setPaused(false)
+            }
+
+            const mapped = mapHandToPlayArea(gResult.handCenter)
+            smoothedPlayRef.current = smoothPoint(smoothedPlayRef.current, mapped, 0.4)
+            lastPlayPositionRef.current = smoothedPlayRef.current
+
+            setGestureResult({
+              gesture: gResult.gesture,
+              confidence,
+              landmarks: lms,
+              handCenter: gResult.handCenter,
+              playPosition: { ...smoothedPlayRef.current },
+              isSystemGesture: gResult.isSystemGesture,
+              stabilityMs: gResult.stabilityMs,
+            })
+
+            if (
+              gResult.isSystemGesture &&
+              gResult.gesture === 'pause_toggle' &&
+              now > pauseCooldownRef.current &&
+              appStore.stage === 'PLAYING'
+            ) {
+              pauseCooldownRef.current = now + 2000
+              const wasPaused = appStore.isPaused
+              appStore.togglePause()
+              appStore.showFeedback(wasPaused ? '▶ RESUMED' : '⏸ PAUSED')
+              setTimeout(() => appStore.hideFeedback(), 1000)
+            }
+
+            const displayGesture = gResult.gesture === 'pause_toggle' ? null : gResult.gesture
+            appStore.setCurrentGesture(displayGesture !== 'none' ? displayGesture : null)
           }
-
-          const displayGesture = gResult.gesture === 'pause_toggle' ? null : gResult.gesture
-          store.setCurrentGesture(displayGesture !== 'none' ? displayGesture : null)
         } else {
           missingHandFramesRef.current++
           setLandmarks([])
 
-          const inGrace = missingHandFramesRef.current < HAND_MISSING_FRAME_THRESHOLD
+          const inGrace = missingHandFramesRef.current < missingThreshold
 
-          if (inGrace) {
-            // Brief dropout: keep last aim position, don't pause yet
-            store.setHandDetected(false, now)
+          if (isBlockBreaker) {
+            const bb = useBlockBreakerStore.getState()
+            if (inGrace) {
+              appStore.setHandDetected(false, now)
+              setGestureResult({
+                gesture: 'none',
+                confidence: 0,
+                landmarks: [],
+                paddleX: lastPaddleXRef.current,
+              })
+              appStore.setCurrentGesture(null)
+            } else {
+              setGestureResult({
+                gesture: 'none',
+                confidence: 0,
+                landmarks: [],
+                paddleX: lastPaddleXRef.current,
+              })
+              appStore.setHandDetected(false, now)
+              appStore.setCurrentGesture(null)
+              if (bb.stage === 'PLAYING' && !bb.handMissingPause) {
+                bb.setHandMissingPause(true)
+              }
+            }
+          } else if (inGrace) {
+            appStore.setHandDetected(false, now)
             setGestureResult({
               gesture: 'none',
               confidence: 0,
               landmarks: [],
               playPosition: { ...lastPlayPositionRef.current },
             })
-            store.setCurrentGesture(null)
+            appStore.setCurrentGesture(null)
           } else {
             setGestureResult({
               gesture: 'none',
@@ -132,12 +187,12 @@ export function useHandTracking() {
               landmarks: [],
               playPosition: { ...lastPlayPositionRef.current },
             })
-            store.setHandDetected(false, now)
-            store.setCurrentGesture(null)
+            appStore.setHandDetected(false, now)
+            appStore.setCurrentGesture(null)
 
-            if (store.stage === 'PLAYING' && !store.handMissingPause) {
-              store.setHandMissingPause(true)
-              store.setPaused(true)
+            if (appStore.stage === 'PLAYING' && !appStore.handMissingPause) {
+              appStore.setHandMissingPause(true)
+              appStore.setPaused(true)
             }
           }
         }
@@ -187,3 +242,5 @@ export function useHandTracking() {
     confidence: gestureResult.confidence,
   }
 }
+
+export type HandTrackingResult = ReturnType<typeof useHandTracking>

@@ -12,6 +12,8 @@ export type GameState =
   | 'permissions'
   | 'dashboard'
 
+export type SelectedGame = 'spellcaster' | 'block_breaker'
+
 export interface CalibrationProfile {
   pinchThreshold: number
   fistCurlRatio: number
@@ -66,6 +68,7 @@ function emptyTrainingChecklist(): Record<SpellGesture, boolean> {
 
 interface GameStore {
   gameState: GameState
+  selectedGame: SelectedGame
   stage: GameStage
   trainingComplete: boolean
   trainingGestures: Record<SpellGesture, boolean>
@@ -96,6 +99,7 @@ interface GameStore {
   recentSpells: { spell: SpellGesture; time: number }[]
 
   setGameState: (state: GameState) => void
+  setSelectedGame: (game: SelectedGame) => void
   setStage: (stage: GameStage) => void
   markTrainingGesture: (gesture: SpellGesture) => void
   isTrainingComplete: () => boolean
@@ -132,6 +136,7 @@ export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       gameState: 'landing',
+      selectedGame: 'spellcaster',
       stage: 'TRAINING_INTRO',
       trainingComplete: false,
       trainingGestures: emptyTrainingChecklist(),
@@ -160,6 +165,8 @@ export const useGameStore = create<GameStore>()(
       recentSpells: [],
 
       setGameState: (state) => set({ gameState: state }),
+
+      setSelectedGame: (game) => set({ selectedGame: game }),
 
       setStage: (stage) => set({ stage }),
 
@@ -311,6 +318,7 @@ export const useGameStore = create<GameStore>()(
         highScore: state.highScore,
         trainingComplete: state.trainingComplete,
         trainingGestures: state.trainingGestures,
+        selectedGame: state.selectedGame,
       }),
     }
   )

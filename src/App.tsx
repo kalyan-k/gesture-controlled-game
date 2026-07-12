@@ -5,10 +5,11 @@ import { useGameStore } from './store/gameStore'
 import { LandingScreen } from './components/LandingScreen'
 import { PermissionsScreen } from './components/PermissionsScreen'
 import { DashboardScreen } from './components/DashboardScreen'
+import { BlockBreakerLivesHUD } from './components/blockBreaker/BlockBreakerLivesHUD'
 import { audio } from './hooks/useAudio'
 
 function App() {
-  const { gameState, settings, updateSettings } = useGameStore()
+  const { gameState, settings, updateSettings, selectedGame } = useGameStore()
 
   useEffect(() => {
     const saved = localStorage.getItem('spellcaster-theme') ?? settings.theme
@@ -37,8 +38,11 @@ function App() {
       className="w-screen h-screen overflow-hidden font-sans relative"
       style={{ background: 'var(--color-bg)', color: 'var(--color-text)' }}
     >
-      {/* Global theme toggle */}
-      <div className="absolute top-4 right-4 z-50">
+      {/* Theme toggle + block breaker lives */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        {gameState === 'dashboard' && selectedGame === 'block_breaker' && (
+          <BlockBreakerLivesHUD />
+        )}
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.94 }}
